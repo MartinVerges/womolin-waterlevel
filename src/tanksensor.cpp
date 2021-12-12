@@ -2,11 +2,27 @@
 #undef ARDUINO_ARCH_ESP32
 #define ARDUINO_ARCH_ESP32 true
 
-#include <EEPROM.h>
-#include "EEPROMAnything.h"
+#include <Arduino.h>
+#include <AsyncTCP.h>
+#include <AsyncElegantOTA.h>
+#include <Preferences.h>
+#include <HX711.h>
+#include <ESPAsyncWebServer.h>
+#include <WiFi.h>
 
-#include "HX711.h"
+const int webserverPort = 80;
+#if __has_include("settings.h")
+// For local development (rename settings-template.h and type your WiFi and other config options
+#include "settings.h"
+#else
+// For GitHub Actions OTA deploment
+const char *wifi_ssid = WIFI_SSID;
+const char *wifi_pass = WIFI_PASS;
+const char *hostName = HOSTNAME;
+#endif
+
 HX711 hx711;
+Preferences preferences;
 
 struct Button {
   const uint8_t PIN;
@@ -36,6 +52,8 @@ struct state_t {
   float lastread = 0.00;                   // last redading while in setup  
   float readings[MAX_DATA_POINTS] = {0};   // data readings from pressure sensor while running level setup
 } setupConfig;
+
+AsyncWebServer server(webserverPort);
 
 void printData(float* readings, size_t count) {
   for (uint8_t i = 0; i < count; i++) Serial.printf("%d = %f\n", i, readings[i]);
@@ -111,7 +129,11 @@ void levelSetup() {
     }
     // printData(levelConfig.readings, 100);
     levelConfig.setupDone = true;
-    EEPROM_writeAnything(0, levelConfig);
+    
+    preferences.begin("tanksensor", true); 
+    preferences.putBool("setupDone", true);
+    preferences.putBytes("readings", levelConfig.readings, sizeof(levelConfig.readings));
+    preferences.end();
 
     setupConfig.readings[0] = 0;
     setupConfig.valueCount = 0;
@@ -132,14 +154,48 @@ void IRAM_ATTR ISR_button2() {
 void setup() {
   Serial.begin(115200);
   hx711.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, 32);
+  
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifi_ssid, wifi_pass);
 
-  EEPROM_readAnything(0, levelConfig);
-  if (levelConfig.setupDone) {
-    Serial.println("LevelData restored from EEPROM...");
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(wifi_ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", (String)hx711.get_median_value(10));
+  });
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  server.begin();
+  Serial.println("HTTP server started");
+
+  if (!preferences.begin("tanksensor", true)) {
+    Serial.println("Error opening NVS Namespace, giving up...");
+    //for (;;);  // leere Dauerschleife -> Ende
+  }
+  
+  levelConfig.setupDone = preferences.getBool("setupDone", false);
+/*  if (levelConfig.setupDone) {
+    Serial.println("LevelData restored from Storage...");
+    if ( preferences.getBytesLength("readings") % sizeof(levelConfig.readings)) {
+      Serial.println("invalid size of readings, unable to restore from storage");
+    } else {
+      preferences.getBytes("readings", levelConfig.readings, sizeof(levelConfig.readings));
+    }
     printData(levelConfig.readings, 100);
   } else {
     Serial.println("no stored configuration found on EEPROM...");
-  }
+  }*/
+  preferences.putBool("setupDone", true);
+  preferences.end();
+
 
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, ISR_button1, FALLING);

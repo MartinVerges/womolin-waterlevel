@@ -1,0 +1,29 @@
+name: Create Firmware
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Installing platformio
+      run: pip3 install -U platformio
+
+    - name: Building a firmware for ESP32
+      run: |
+        export WIFI_SSID=${{ secrets.WIFI_SSID }}
+        export WIFI_SSID=${{ secrets.WIFI_PASS }}
+        export HOSTNAME=${{ secrets.HOSTNAME }}
+        pio run
+# produces ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v2
+        with:
+          name: firmware.bin
+          path: ${{ github.workspace }}/.pio/build/esp32dev/

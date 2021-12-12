@@ -33,6 +33,23 @@ To build this sensor yourself, you need:
  
  In addition you need some few small cables and soldering equipment to build the circuit.
 
+
+## How to build this PlatformIO based project
+
+1. [Install PlatformIO Core](http://docs.platformio.org/page/core.html)
+2. Run these commands:
+
+```
+    # Change directory into the code folder
+    > cd rv-smart-tanksensor
+
+    # Build project
+    > platformio run
+
+    # Upload firmware
+    > platformio run --target upload
+```
+
 ## Alternatives
 
 ### Pressure based (like this project)
