@@ -25,11 +25,11 @@ The following aspects are the focus of this project:
 
 To build this sensor yourself, you need:
 
- 1x ESP32 ESP32-WROOM-32 (between 1.75€ and 8.00€)
- 1x MPX53DP Pressure Sensor (~ 8.00€)
- 1x HX711 24-bit ADC (~2.50€)
- 1x Pushbutton (~0.15€)
- 1x Tube with 4mm inner width (~1€) 
+ * 1x ESP32 ESP32-WROOM-32 (between 1.75€ and 8.00€)
+ * 1x MPX53DP Pressure Sensor (~ 8.00€)
+ * 1x HX711 24-bit ADC (~2.50€)
+ * 1x Pushbutton (~0.15€)
+ * 1x Tube with 4mm inner width (~1€) 
  
  In addition you need some few small cables and soldering equipment to build the circuit.
 
