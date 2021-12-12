@@ -3,6 +3,7 @@
 #define ARDUINO_ARCH_ESP32 true
 
 #include <EEPROM.h>
+#include "EEPROMAnything.h"
 
 #include "HX711.h"
 HX711 hx711;
@@ -21,7 +22,10 @@ const int GPIO_HX711_SCK = 25;             // GPIO pin to use for SCK
 const float LOWER_END = 0.010;             // value increase to start recording (tank is empty)
 const float UPPER_END = 0.990;             // value limit to cutoff data (tank is full)
 
-float levelConfig[100] = {0};              // pressure readings to map to percentage filling
+struct config_t {
+  bool setupDone = false;                  // Configuration done or not yet initialized sensor
+  float readings[100] = {0};               // pressure readings to map to percentage filling
+} levelConfig;
 int currentState = 0;                      // last reading in percent
 unsigned long millisStarted = 0;           // timer to run parts only at given interval
 
@@ -33,14 +37,13 @@ struct state_t {
   float readings[MAX_DATA_POINTS] = {0};   // data readings from pressure sensor while running level setup
 } setupConfig;
 
-
 void printData(float* readings, size_t count) {
   for (uint8_t i = 0; i < count; i++) Serial.printf("%d = %f\n", i, readings[i]);
 }
 
 int getPercentage(float val) {
   for(int x=99; x>0; x--) {
-    if (val > levelConfig[x]) return x+1;
+    if (val > levelConfig.readings[x]) return x+1;
   }
   return 0;
 }
@@ -92,7 +95,7 @@ void levelSetup() {
     float y1 = 0.00;                           // lower percentage of reading[] index (e.g. entry x equals 55%)
     float y2 = 0.00;                           // upper percentage of reading[] index (e.g. entry x+1 equals 58%)
     int Y = 0;                                 // % value (1-100%) 
-    if (Y==0) levelConfig[Y++] = setupConfig.readings[x];
+    if (Y==0) levelConfig.readings[Y++] = setupConfig.readings[x];
     while(Y <= 100) {
       while (Y > y2 && x <= endIndex) {
         // find the next dataset to calculate Z
@@ -101,14 +104,14 @@ void levelSetup() {
         x++;
       }
       float Z = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1])); // save the value into the configuration
-      levelConfig[Y] = Z;
+      levelConfig.readings[Y] = Z;
       // Serial.printf("\t\t\ty1=\t%f\t | y2=\t%f\n", y1, y2);
       // Serial.printf("Y=%d\t| Z = %d | z1=\t%f\t| z2=\t%f\n", Y, (int)Z, setupConfig.readings[x-1], setupConfig.readings[x]);
       Y++;
     }
-    // printData(levelConfig, 100);
-    EEPROM.put(0, true);
-    EEPROM.put(sizeof(bool), levelConfig);
+    // printData(levelConfig.readings, 100);
+    levelConfig.setupDone = true;
+    EEPROM_writeAnything(0, levelConfig);
 
     setupConfig.readings[0] = 0;
     setupConfig.valueCount = 0;
@@ -130,12 +133,10 @@ void setup() {
   Serial.begin(115200);
   hx711.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, 32);
 
-  bool setupDone = false;
-  EEPROM.get(0, setupDone);
-  if (setupDone) {
-    Serial.println("Restoring levelData from EEPROM...");
-    EEPROM.get(sizeof(bool), levelConfig);
-    printData(levelConfig, 100);
+  EEPROM_readAnything(0, levelConfig);
+  if (levelConfig.setupDone) {
+    Serial.println("LevelData restored from EEPROM...");
+    printData(levelConfig.readings, 100);
   } else {
     Serial.println("no stored configuration found on EEPROM...");
   }
@@ -174,7 +175,7 @@ void loop() {
 
   if (button2.pressed) {
     button2.pressed = false;
-    printData(levelConfig, 100);
+    printData(levelConfig.readings, 100);
   }
   
   if (setupConfig.readings[0] > 0) {
@@ -187,7 +188,7 @@ void loop() {
     // run regular operation
     if (millis() - millisStarted > 1000) {
       millisStarted = millis();
-      if (levelConfig[0] > 0) readPressure();
+      if (levelConfig.readings[0] > 0) readPressure();
       else Serial.println("No leveldata found, please run the setup to use the device!");
     }
   }
