@@ -34,8 +34,6 @@ struct state_t {
 } setupConfig;
 
 
-
-
 void printData(float* readings, size_t count) {
   for (uint8_t i = 0; i < count; i++) Serial.printf("%d = %f\n", i, readings[i]);
 }
