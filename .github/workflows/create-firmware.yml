@@ -26,4 +26,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: firmware.bin
-        path: ${{ github.workspace }}/.pio/build/esp32dev/
+        path: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin

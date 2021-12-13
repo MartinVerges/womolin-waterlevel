@@ -9,6 +9,12 @@
 #include <HX711.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include <LITTLEFS.h>
+#include <String>
+
+#ifndef CONFIG_LITTLEFS_FOR_IDF_3_2
+ #include <time.h>
+#endif
 
 const int webserverPort = 80;
 #if __has_include("settings.h")
@@ -20,6 +26,8 @@ const char *wifi_ssid = WIFI_SSID;
 const char *wifi_pass = WIFI_PASS;
 const char *hostName = HOSTNAME;
 #endif
+
+#define NVS_NAMESPACE "tanksensor"
 
 HX711 hx711;
 Preferences preferences;
@@ -121,8 +129,8 @@ void levelSetup() {
         y2 = (float)(x-startIndex+1.0) / readingCount * 100;     // upper percentage of the next sensor reading
         x++;
       }
-      float Z = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1])); // save the value into the configuration
-      levelConfig.readings[Y] = Z;
+      // float Z = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1])); // save the value into the configuration
+      levelConfig.readings[Y] = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1]));
       // Serial.printf("\t\t\ty1=\t%f\t | y2=\t%f\n", y1, y2);
       // Serial.printf("Y=%d\t| Z = %d | z1=\t%f\t| z2=\t%f\n", Y, (int)Z, setupConfig.readings[x-1], setupConfig.readings[x]);
       Y++;
@@ -130,9 +138,12 @@ void levelSetup() {
     // printData(levelConfig.readings, 100);
     levelConfig.setupDone = true;
     
-    preferences.begin("tanksensor", true); 
+    preferences.begin(NVS_NAMESPACE, false); 
+    preferences.clear();
     preferences.putBool("setupDone", true);
-    preferences.putBytes("readings", levelConfig.readings, sizeof(levelConfig.readings));
+    for (uint8_t i = 0; i < 100; i++) {
+      preferences.putInt(String("val" + String(i)).c_str(), (int)levelConfig.readings[i]);
+    }
     preferences.end();
 
     setupConfig.readings[0] = 0;
@@ -151,9 +162,28 @@ void IRAM_ATTR ISR_button2() {
   button2.pressed = true;
 }
 
+void loadFileContent() {
+  File file = LITTLEFS.open("/index.html");
+  if(!file){
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+  Serial.println("File Content:");
+  while(file.available()){
+    Serial.write(file.read());
+  }
+  file.close();
+  return;
+}
+
 void setup() {
   Serial.begin(115200);
   hx711.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, 32);
+  
+  if(!LITTLEFS.begin(true)){
+    Serial.println("An Error has occurred while mounting LITTLEFS");
+    ESP.restart();
+  }
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifi_ssid, wifi_pass);
@@ -170,32 +200,36 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", (String)hx711.get_median_value(10));
+    request->send(LITTLEFS, "/index.html", String(), false);
   });
+  server.on("/api/setup", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Future: start/end setup");
+  });
+  server.on("/api/reading/raw", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", (String)(int)hx711.get_median_value(10));
+  });
+  server.on("/api/level", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", (String)getPercentage(hx711.get_median_value(10)));
+  });
+
   AsyncElegantOTA.begin(&server);    // Start ElegantOTA
   server.begin();
   Serial.println("HTTP server started");
 
-  if (!preferences.begin("tanksensor", true)) {
+  if (!preferences.begin(NVS_NAMESPACE, false)) {
     Serial.println("Error opening NVS Namespace, giving up...");
-    //for (;;);  // leere Dauerschleife -> Ende
-  }
-  
-  levelConfig.setupDone = preferences.getBool("setupDone", false);
-/*  if (levelConfig.setupDone) {
-    Serial.println("LevelData restored from Storage...");
-    if ( preferences.getBytesLength("readings") % sizeof(levelConfig.readings)) {
-      Serial.println("invalid size of readings, unable to restore from storage");
-    } else {
-      preferences.getBytes("readings", levelConfig.readings, sizeof(levelConfig.readings));
-    }
-    printData(levelConfig.readings, 100);
   } else {
-    Serial.println("no stored configuration found on EEPROM...");
-  }*/
-  preferences.putBool("setupDone", true);
-  preferences.end();
-
+    levelConfig.setupDone = preferences.getBool("setupDone", false);
+    if (levelConfig.setupDone) {
+      Serial.println("LevelData restored from Storage...");
+      for (uint8_t i = 0; i < 100; i++) {
+         levelConfig.readings[i] = (float)preferences.getInt(String("val" + String(i)).c_str(), 0);
+      }
+    } else {
+      Serial.println("No stored configuration found on NVS...");
+    }
+    preferences.end();
+  }
 
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, ISR_button1, FALLING);
