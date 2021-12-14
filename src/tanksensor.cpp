@@ -9,7 +9,6 @@
 #include <HX711.h>
 #include <LITTLEFS.h>
 #include <Preferences.h>
-#include <String>
 #include <WiFi.h>
 
 #ifndef CONFIG_LITTLEFS_FOR_IDF_3_2
@@ -18,7 +17,7 @@
 
 const int webserverPort = 80;
 #if __has_include("settings.h")
-// For local development (rename settings-template.h and type your WiFi and other config options
+// For local development (rename settings-template.h and type your WiFi and other config options)
 #include "settings.h"
 #else
 // For GitHub Actions OTA deploment
