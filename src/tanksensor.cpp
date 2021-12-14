@@ -1,8 +1,8 @@
-// Fix an issue with the HX711 library on ESP32
 #if !(defined(ESP32) )
   #error This code is intended to run on the ESP32 platform! Please check your Tools->Board setting.
 #endif
 
+// Fix an issue with the HX711 library on ESP32
 #undef ARDUINO_ARCH_ESP32
 #define ARDUINO_ARCH_ESP32 true
 
@@ -89,16 +89,24 @@ void setup() {
   Serial.println(WiFi.localIP());
 */
 
-  webServer.serveStatic("/", LITTLEFS, "/").setDefaultFile("index.html");
-
-  webServer.on("/api/setup", HTTP_POST, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Future: start/end setup");
+  webServer.on("/api/setup/begin", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", String(Tanklevel.beginLevelSetup()));
+  });
+  webServer.on("/api/setup/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", String(Tanklevel.isSetupRunning()));
+  });
+  webServer.on("/api/setup/end", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", String(Tanklevel.endLevelSetup()));
+  });
+  webServer.on("/api/setup/abort", HTTP_POST, [](AsyncWebServerRequest *request) {
+    Tanklevel.setAbortAsync();
+    request->send(200, "text/plain", String("Abort requested"));
   });
   webServer.on("/api/reading/raw", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", (String)Tanklevel.getMedian());
   });
   webServer.on("/api/level", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", (String)Tanklevel.getPercentage());
+    request->send(200, "text/plain", (String)Tanklevel.getPercentage(true));
   });
   webServer.on("/api/esp/heap", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getFreeHeap()));
@@ -109,10 +117,12 @@ void setup() {
   webServer.on("/api/esp/freq", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
   });
-
+  
+  webServer.serveStatic("/", LITTLEFS, "/").setDefaultFile("index.html");
+  
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
-      Serial.printf("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
     }
   });
   webServer.addHandler(&events);
@@ -133,21 +143,28 @@ void loop() {
       Serial.println("User requested end of setup...");
       Tanklevel.endLevelSetup();
     } else {
-      Tanklevel.levelSetup();
+      Serial.println("User requested start of setup...");
+      Tanklevel.beginLevelSetup();
     }
     button1.pressed = false;
   }
 
   if (button2.pressed) {
     button2.pressed = false;
-    Tanklevel.printData();
+    Tanklevel.abortLevelSetup();
+    //Tanklevel.printData();
   }
   
   if (Tanklevel.isSetupRunning()) {
     // run the level setup
     if (millis() - millisStarted >= 100) {
       millisStarted = millis();
-      Tanklevel.levelSetup();
+      int val = Tanklevel.runLevelSetup();
+      if (val > 0) {
+        events.send(String(val).c_str(), "setup", millis());
+      } else {
+        events.send("Unable to read data from sensor!", "setuperror", millis());
+      }
     }
   } else {
     // run regular operation

@@ -67,7 +67,6 @@ int TANKLEVEL::getPercentage(bool cached) {
   return 0;
 }
 
-
 void TANKLEVEL::setLimits(float lower_end, float upper_end) {
     LOWER_END = lower_end;
     UPPER_END = upper_end;
@@ -105,11 +104,42 @@ int TANKLEVEL::findStartCutoffIndex(int endIndex) {
   return startIndex;
 }
 
-void TANKLEVEL::endLevelSetup() {
+bool TANKLEVEL::beginLevelSetup() {
+  if (!isSetupRunning()) {  // Start the level setup
+    setupConfig.valueCount = 0;
+    setupConfig.readings[setupConfig.valueCount++] = hx711.get_max_value(10);
+    Serial.printf("Begin level setup with minValue of %d\n", setupConfig.readings[0]);
+    return true;
+  } else {
+    Serial.println("Level setup is already running");
+    return false;
+  }
+}
+
+void TANKLEVEL::setAbortAsync() {
+  setupConfig.abort = true;
+}
+
+bool TANKLEVEL::abortLevelSetup() {
+  Serial.print("Abort setup ... ");
+  setupConfig.valueCount = 0;
+  while(setupConfig.valueCount < MAX_DATA_POINTS) { // cleanup
+    setupConfig.readings[setupConfig.valueCount++] = 0;
+  }
+  setupConfig.readings[0] = 0;
+  setupConfig.valueCount = 0;
+  setupConfig.abort = false;
+  Serial.println("done");
+  return true;
+}
+
+bool TANKLEVEL::endLevelSetup() {
+    if (setupConfig.abort) return abortLevelSetup();
     Serial.println("Exiting setup");
 
     while(setupConfig.valueCount < MAX_DATA_POINTS) {
-        setupConfig.readings[setupConfig.valueCount++] = setupConfig.lastread;
+      // force end of setup by filling empty slots
+      setupConfig.readings[setupConfig.valueCount++] = setupConfig.lastread;
     }
 
     std::sort(std::begin(setupConfig.readings), std::end(setupConfig.readings));
@@ -143,30 +173,34 @@ void TANKLEVEL::endLevelSetup() {
     // printData(levelConfig.readings, 100);
     levelConfig.setupDone = true;
     
-    preferences.begin(NVS_NAMESPACE.c_str(), false); 
-    preferences.clear();
-    preferences.putBool("setupDone", true);
-    for (uint8_t i = 0; i < 100; i++) {
-      preferences.putInt(String("val" + String(i)).c_str(), levelConfig.readings[i]);
+    if (preferences.begin(NVS_NAMESPACE.c_str(), false)) {
+      preferences.clear();
+      preferences.putBool("setupDone", true);
+      for (uint8_t i = 0; i < 100; i++) {
+        preferences.putInt(String("val" + String(i)).c_str(), levelConfig.readings[i]);
+      }
+      preferences.end();
+    } else {
+      Serial.println("Unable to write data to NVS, giving up...");
+      return false;
     }
-    preferences.end();
 
+    // cleanup
     setupConfig.readings[0] = 0;
     setupConfig.valueCount = 0;
-    return;
+    return true;
 }
 
-void TANKLEVEL::levelSetup() {
-  if (setupConfig.readings[0] <= 0) {  // Start the level setup
-    setupConfig.valueCount = 0;
-    setupConfig.readings[setupConfig.valueCount++] = hx711.get_max_value(10);
-    Serial.printf("Begin level setup with minValue of %d\n", setupConfig.readings[0]);
-    return;
-  }
-  if (setupConfig.valueCount >= MAX_DATA_POINTS) {
-    
-  }
-  setupConfig.lastread = (int)hx711.get_median_value(10);
-  Serial.printf("Recording new entry with a value of %d\n", setupConfig.lastread);
-  setupConfig.readings[setupConfig.valueCount++] = setupConfig.lastread;
+int TANKLEVEL::runLevelSetup() {
+  if (setupConfig.abort) return abortLevelSetup();
+  if (isSetupRunning()) {
+    if (setupConfig.valueCount >= MAX_DATA_POINTS) {
+      endLevelSetup();
+      return 0;
+    }
+    setupConfig.lastread = (int)hx711.get_median_value(10);
+    Serial.printf("Recording new entry with a value of %d\n", setupConfig.lastread);
+    setupConfig.readings[setupConfig.valueCount++] = setupConfig.lastread;
+    return setupConfig.lastread;
+  } else return 0;
 }

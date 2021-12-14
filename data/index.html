@@ -4,15 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="css/bootstrap.min.css">
-    <title>Tanksensor</title>
+    <title>Tank sensor - State</title>
   </head>
   <body>
     <header class="p-3 bg-dark text-white">
       <div class="container">
         <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
           <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
-            <li><a href="/" class="nav-link px-2 text-secondary">Status</a></li>
-            <li><a href="/setup" class="nav-link px-2 text-white">Setup</a></li>
+            <li><a href="/" class="nav-link px-2 text-secondary">State</a></li>
+            <li><a href="/setup.html" class="nav-link px-2 text-white">Setup</a></li>
             <li><a href="/update" class="nav-link px-2 text-white">Update</a></li>
           </ul>
         </div>
@@ -20,7 +20,7 @@
     </header>
     <div class="card">
       <div class="card-header">
-        Current Tank level
+        Current level
       </div>
       <div class="card-body">
         <div class="mx-auto w-75">
@@ -30,10 +30,12 @@
         </div>
       </div>
     </div>
-    <footer class="py-3 my-4 border-top">
-      <p class="text-center text-muted">
-        <a href="https://github.com/MartinVerges/rv-smart-tanksensor" target="_blank">rv-smart-tanksensor</a><br/>
-        (c) 2021 by Martin Verges </p>
+    <footer class="footer mt-auto py-3 bg-light">
+      <div class="container">
+        <p class="text-muted" style="text-align:center">
+          <a href="https://github.com/MartinVerges/rv-smart-tanksensor" target="_blank">rv-smart-tanksensor</a> (c) 2021 by Martin Verges
+        </p>
+      </div>
     </footer>
     <script src="js/jquery-3.6.0.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
@@ -42,7 +44,7 @@
         $(".progress-bar").attr('aria-valuenow',level).width(level+"%").text(level);
       }
 
-      $.getJSON( "/api/level", function( level ) {
+      $.get( "/api/level", function( level ) {
         updateProgressBar(parseInt(level));
       });
 
@@ -60,7 +62,6 @@
         }, false);
 
         source.addEventListener('level', function(e) {
-          console.log("message", e.data);
           updateProgressBar(parseInt(e.data));
         }, false);
       }
