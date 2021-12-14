@@ -3,14 +3,14 @@
 #define ARDUINO_ARCH_ESP32 true
 
 #include <Arduino.h>
-#include <AsyncTCP.h>
 #include <AsyncElegantOTA.h>
-#include <Preferences.h>
-#include <HX711.h>
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <WiFi.h>
+#include <HX711.h>
 #include <LITTLEFS.h>
+#include <Preferences.h>
 #include <String>
+#include <WiFi.h>
 
 #ifndef CONFIG_LITTLEFS_FOR_IDF_3_2
  #include <time.h>
