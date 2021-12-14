@@ -50,16 +50,23 @@ bool TANKLEVEL::isConfigured() {
 }
 
 int TANKLEVEL::getMedian() {
-    return (int)hx711.get_median_value(10);
+    if (hx711.wait_ready_retry(100)) {
+      return (int)hx711.get_median_value(10);
+    } else {
+      Serial.println("Unable to communicate with the HX711 modul.");
+      return 0;
+    }
 }
 
-int TANKLEVEL::getPercentage() {
-    int val = TANKLEVEL::getMedian();
-    for(int x=99; x>0; x--) {
-        if (val > levelConfig.readings[x]) return x+1;
-    }
-    return 0;
+int TANKLEVEL::getPercentage(bool cached) {
+  int val = currentState;
+  if (!cached) val = getMedian();
+  for(int x=99; x>0; x--) {
+      if (val > levelConfig.readings[x]) return x+1;
+  }
+  return 0;
 }
+
 
 void TANKLEVEL::setLimits(float lower_end, float upper_end) {
     LOWER_END = lower_end;
@@ -71,21 +78,7 @@ void TANKLEVEL::printData(int* readings, size_t count) {
 }
 
 void TANKLEVEL::printData() {
-    TANKLEVEL::printData(levelConfig.readings, 100);
-}
-
-/*
-UNITS = one reading: 4768.1  | average:  4768.9
-VALUE = one reading:  477464.0  | average:  476669.0
-RAW   = one reading:  4316381 | average:  4315608
-*/
-void TANKLEVEL::readPressure() {
-  if (hx711.wait_ready_retry(100)) {
-    currentState = getPercentage();
-    Serial.printf("Tank fill status = %d\n", currentState);
-  } else {
-    Serial.println("Unable to communicate with the HX711 modul.");
-  }
+    printData(levelConfig.readings, 100);
 }
 
 // Search through the setupConfig sensor readings and find the upper limit cutoff index

@@ -1,4 +1,8 @@
 // Fix an issue with the HX711 library on ESP32
+#if !(defined(ESP32) )
+  #error This code is intended to run on the ESP32 platform! Please check your Tools->Board setting.
+#endif
+
 #undef ARDUINO_ARCH_ESP32
 #define ARDUINO_ARCH_ESP32 true
 
@@ -6,6 +10,7 @@
 #include <AsyncElegantOTA.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <ESPAsync_WiFiManager.h> 
 #include <LITTLEFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
@@ -23,8 +28,8 @@ const int webserverPort = 80;              // Start the Webserver on this port
 
 unsigned long millisStarted = 0;           // timer to run parts only at given interval
 
-String wifi_ssid = "TankSensor";
-String wifi_pass = "SuperSecret";
+String wifi_ssid = "ESP_" + String((uint32_t)ESP.getEfuseMac(), HEX);
+String wifi_pass = "";
 String hostName = "my-tanksensor";
 
 TANKLEVEL Tanklevel;
@@ -36,7 +41,8 @@ struct Button {
 Button button1 = {21, false};              // Run the setup 
 Button button2 = {22, false};              // unused
 
-AsyncWebServer server(webserverPort);
+AsyncWebServer webServer(webserverPort);
+AsyncEventSource events("/events");
 
 void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
@@ -53,7 +59,21 @@ void setup() {
     Serial.println("An Error has occurred while mounting LITTLEFS");
     ESP.restart();
   }
-  
+
+
+  Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
+  Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
+  ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, NULL, "Async_AutoConnect");
+  ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,0,1), IPAddress(192,168,0,1), IPAddress(255,255,255,0));
+  ESPAsync_wifiManager.autoConnect("AutoConnectAP");
+  if (WiFi.status() == WL_CONNECTED) { 
+    Serial.print(F("Connected. Local IP: ")); 
+    Serial.println(WiFi.localIP()); 
+  } else {
+    Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status())); 
+  }
+
+  /*
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
 
@@ -67,22 +87,38 @@ void setup() {
   Serial.println(wifi_ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+*/
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(LITTLEFS, "/index.html", String(), false);
-  });
-  server.on("/api/setup", HTTP_POST, [](AsyncWebServerRequest *request) {
+  webServer.serveStatic("/", LITTLEFS, "/").setDefaultFile("index.html");
+
+  webServer.on("/api/setup", HTTP_POST, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", "Future: start/end setup");
   });
-  server.on("/api/reading/raw", HTTP_GET, [](AsyncWebServerRequest *request) {
+  webServer.on("/api/reading/raw", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", (String)Tanklevel.getMedian());
   });
-  server.on("/api/level", HTTP_GET, [](AsyncWebServerRequest *request) {
+  webServer.on("/api/level", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/plain", (String)Tanklevel.getPercentage());
   });
+  webServer.on("/api/esp/heap", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(200, "text/plain", String(ESP.getFreeHeap()));
+  });
+  webServer.on("/api/esp/cores", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(200, "text/plain", String(ESP.getChipCores()));
+  });
+  webServer.on("/api/esp/freq", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
+  });
 
-  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
-  server.begin();
+  events.onConnect([](AsyncEventSourceClient *client){
+    if(client->lastId()){
+      Serial.printf("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
+    }
+  });
+  webServer.addHandler(&events);
+
+  AsyncElegantOTA.begin(&webServer);    // Start ElegantOTA
+  webServer.begin();
   Serial.println("HTTP server started");
 
   pinMode(button1.PIN, INPUT_PULLUP);
@@ -117,8 +153,11 @@ void loop() {
     // run regular operation
     if (millis() - millisStarted > 1000) {
       millisStarted = millis();
-      if (Tanklevel.isConfigured()) Tanklevel.readPressure();
-      else Serial.println("Tanklevel Sensor not configured, please run the setup!");
+      if (Tanklevel.isConfigured()) {
+        int val = Tanklevel.getPercentage();
+        events.send(String(val).c_str(), "level", millis());
+        Serial.printf("Tank fill status = %d\n", val);
+      } else Serial.println("Tanklevel Sensor not configured, please run the setup!");
     }
   }
   delay(25);

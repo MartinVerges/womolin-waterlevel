@@ -47,8 +47,7 @@ class TANKLEVEL
 		void begin(uint8_t dout, uint8_t pd_sck, String nvs);
         void setLimits(float lower_end, float upper_end);
         int getMedian();
-        int getPercentage();
-        void readPressure();
+        int getPercentage(bool cached = false);
         bool isConfigured();
         bool isSetupRunning();
         void endLevelSetup();
