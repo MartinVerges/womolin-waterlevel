@@ -15,18 +15,12 @@
  #include <time.h>
 #endif
 
-const int webserverPort = 80;
-#if __has_include("settings.h")
-// For local development (rename settings-template.h and type your WiFi and other config options)
-#include "settings.h"
-#else
-// For GitHub Actions OTA deploment
-const char *wifi_ssid = WIFI_SSID;
-const char *wifi_pass = WIFI_PASS;
-const char *hostName = HOSTNAME;
-#endif
-
 #define NVS_NAMESPACE "tanksensor"
+
+const int webserverPort = 80;
+String wifi_ssid = "TankSensor";
+String wifi_pass = "SuperSecret";
+String hostName = "my-tanksensor";
 
 HX711 hx711;
 Preferences preferences;
@@ -47,7 +41,7 @@ const float UPPER_END = 0.990;             // value limit to cutoff data (tank i
 
 struct config_t {
   bool setupDone = false;                  // Configuration done or not yet initialized sensor
-  float readings[100] = {0};               // pressure readings to map to percentage filling
+  int readings[100] = {0};                 // pressure readings to map to percentage filling
 } levelConfig;
 int currentState = 0;                      // last reading in percent
 unsigned long millisStarted = 0;           // timer to run parts only at given interval
@@ -55,15 +49,15 @@ unsigned long millisStarted = 0;           // timer to run parts only at given i
 const int MAX_DATA_POINTS = 255;           // how many level data points to store (increased accuracy)
 struct state_t {
   int valueCount = 0;                      // current number of entries in readings[]
-  float minValue = 0.00;                   // lowest value to start recording
-  float lastread = 0.00;                   // last redading while in setup  
-  float readings[MAX_DATA_POINTS] = {0};   // data readings from pressure sensor while running level setup
+  int minValue = 0.00;                     // lowest value to start recording
+  int lastread = 0.00;                     // last redading while in setup  
+  int readings[MAX_DATA_POINTS] = {0};     // data readings from pressure sensor while running level setup
 } setupConfig;
 
 AsyncWebServer server(webserverPort);
 
-void printData(float* readings, size_t count) {
-  for (uint8_t i = 0; i < count; i++) Serial.printf("%d = %f\n", i, readings[i]);
+void printData(int* readings, size_t count) {
+  for (uint8_t i = 0; i < count; i++) Serial.printf("%d = %d\n", i, readings[i]);
 }
 
 int getPercentage(float val) {
@@ -101,7 +95,7 @@ void levelSetup() {
   if (setupConfig.readings[0] <= 0) {  // Start the level setup
     setupConfig.valueCount = 0;
     setupConfig.readings[setupConfig.valueCount++] = hx711.get_max_value(10);
-    Serial.printf("Begin level setup with minValue of %f\n", setupConfig.readings[0]);
+    Serial.printf("Begin level setup with minValue of %d\n", setupConfig.readings[0]);
     return;
   }
   if (setupConfig.valueCount >= MAX_DATA_POINTS) {
@@ -119,9 +113,11 @@ void levelSetup() {
     int x = startIndex;                        // index of reading[]
     float y1 = 0.00;                           // lower percentage of reading[] index (e.g. entry x equals 55%)
     float y2 = 0.00;                           // upper percentage of reading[] index (e.g. entry x+1 equals 58%)
-    int Y = 0;                                 // % value (1-100%) 
-    if (Y==0) levelConfig.readings[Y++] = setupConfig.readings[x];
-    while(Y <= 100) {
+    for (size_t Y = 0; Y <=100; Y++) {         // % value (1-100%)
+      if (Y==0) {
+        levelConfig.readings[Y++] = setupConfig.readings[x];
+        continue;
+      }
       while (Y > y2 && x <= endIndex) {
         // find the next dataset to calculate Z
         y1 = (float)(x-startIndex  ) / readingCount * 100;     // lower percentage of this sensor reading
@@ -132,7 +128,6 @@ void levelSetup() {
       levelConfig.readings[Y] = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1]));
       // Serial.printf("\t\t\ty1=\t%f\t | y2=\t%f\n", y1, y2);
       // Serial.printf("Y=%d\t| Z = %d | z1=\t%f\t| z2=\t%f\n", Y, (int)Z, setupConfig.readings[x-1], setupConfig.readings[x]);
-      Y++;
     }
     // printData(levelConfig.readings, 100);
     levelConfig.setupDone = true;
@@ -141,7 +136,7 @@ void levelSetup() {
     preferences.clear();
     preferences.putBool("setupDone", true);
     for (uint8_t i = 0; i < 100; i++) {
-      preferences.putInt(String("val" + String(i)).c_str(), (int)levelConfig.readings[i]);
+      preferences.putInt(String("val" + String(i)).c_str(), levelConfig.readings[i]);
     }
     preferences.end();
 
@@ -149,8 +144,8 @@ void levelSetup() {
     setupConfig.valueCount = 0;
     return;
   }
-  setupConfig.lastread = hx711.get_median_value(10);
-  Serial.printf("Recording new entry with a value of %f\n", setupConfig.lastread);
+  setupConfig.lastread = (int)hx711.get_median_value(10);
+  Serial.printf("Recording new entry with a value of %d\n", setupConfig.lastread);
   setupConfig.readings[setupConfig.valueCount++] = setupConfig.lastread;
 }
 
@@ -185,7 +180,7 @@ void setup() {
   }
   
   WiFi.mode(WIFI_STA);
-  WiFi.begin(wifi_ssid, wifi_pass);
+  WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
 
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {

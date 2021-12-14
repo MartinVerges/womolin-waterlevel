@@ -16,9 +16,6 @@ jobs:
 
     - name: Building a firmware for ESP32
       run: |
-        export WIFI_SSID=${{ secrets.WIFI_SSID }}
-        export WIFI_SSID=${{ secrets.WIFI_PASS }}
-        export HOSTNAME=${{ secrets.HOSTNAME }}
         pio run
 # produces ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
 
