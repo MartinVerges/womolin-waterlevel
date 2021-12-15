@@ -5,10 +5,14 @@
 // Fix an issue with the HX711 library on ESP32
 #undef ARDUINO_ARCH_ESP32
 #define ARDUINO_ARCH_ESP32 true
+#undef USE_LITTLEFS
+#define USE_LITTLEFS true
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <AsyncElegantOTA.h>
 #include <AsyncTCP.h>
+#include <DNSServer.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPAsync_WiFiManager.h> 
 #include <LITTLEFS.h>
@@ -28,10 +32,6 @@ const int webserverPort = 80;              // Start the Webserver on this port
 
 unsigned long millisStarted = 0;           // timer to run parts only at given interval
 
-String wifi_ssid = "ESP_" + String((uint32_t)ESP.getEfuseMac(), HEX);
-String wifi_pass = "";
-String hostName = "my-tanksensor";
-
 TANKLEVEL Tanklevel;
 
 struct Button {
@@ -41,8 +41,14 @@ struct Button {
 Button button1 = {21, false};              // Run the setup 
 Button button2 = {22, false};              // unused
 
+String wifi_ssid = "ESP_" + String((uint32_t)ESP.getEfuseMac(), HEX);
+String wifi_pass = "";
+String hostName = "my-tanksensor";
+DNSServer dnsServer;
+
 AsyncWebServer webServer(webserverPort);
 AsyncEventSource events("/events");
+
 
 void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
@@ -60,10 +66,9 @@ void setup() {
     ESP.restart();
   }
 
-
   Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
   Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
-  ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, NULL, "Async_AutoConnect");
+  ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
   ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,0,1), IPAddress(192,168,0,1), IPAddress(255,255,255,0));
   ESPAsync_wifiManager.autoConnect("AutoConnectAP");
   if (WiFi.status() == WL_CONNECTED) { 
@@ -73,40 +78,65 @@ void setup() {
     Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status())); 
   }
 
-  /*
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
-
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(wifi_ssid);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-*/
-
-  webServer.on("/api/setup/begin", HTTP_POST, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", String(Tanklevel.beginLevelSetup()));
+  webServer.on("/api/setup/start", HTTP_POST, [](AsyncWebServerRequest *request) {
+    Tanklevel.setStartAsync();
+    if (request->contentType() == "application/json") {
+      request->send(200, "application/json", "{\"message\":\"Begin of Setup requested\"}");
+    } else request->send(200, "text/plain", "Begin of Setup requested");
   });
   webServer.on("/api/setup/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", String(Tanklevel.isSetupRunning()));
+    if (request->contentType() == "application/json") {
+      String output;
+      StaticJsonDocument<16> doc;
+      doc["setupIsRunning"] = Tanklevel.isSetupRunning();
+      serializeJson(doc, output);
+      request->send(200, "application/json", output);
+    } else request->send(200, "text/plain", String(Tanklevel.isSetupRunning()));
   });
   webServer.on("/api/setup/end", HTTP_POST, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", String(Tanklevel.endLevelSetup()));
+    Tanklevel.setEndAsync();
+    if (request->contentType() == "application/json") {
+      request->send(200, "application/json", "{\"message\":\"End of Setup requested\"}");
+    } else request->send(200, "text/plain", "End of Setup requested");
   });
   webServer.on("/api/setup/abort", HTTP_POST, [](AsyncWebServerRequest *request) {
     Tanklevel.setAbortAsync();
-    request->send(200, "text/plain", String("Abort requested"));
+    if (request->contentType() == "application/json") {
+      request->send(200, "application/json", "{\"message\":\"Abort requested\"}");
+    } else request->send(200, "text/plain", "Abort requested");
   });
-  webServer.on("/api/reading/raw", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", (String)Tanklevel.getMedian());
+  webServer.onRequestBody([](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+    Serial.println("Running");
+    if (request->url() == "/api/setup/values" && request->method() == HTTP_POST) {
+      DynamicJsonDocument jsonBuffer(64);
+      deserializeJson(jsonBuffer, (const char*)data);
+
+      if (!jsonBuffer["lower"].is<int>() || !jsonBuffer["upper"].is<int>()) {
+        request->send(422, "text/plain", "Invalid data");
+        return;
+      }
+      if (Tanklevel.setupFrom2Values(jsonBuffer["lower"], jsonBuffer["upper"])) {
+        request->send(500, "text/plain", "Unable to process data");
+      } else request->send(200, "application/json", "{\"message\":\"Setup completed\"}");
+    }
+  });
+  webServer.on("/api/rawvalue", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (request->contentType() == "application/json") {
+      String output;
+      StaticJsonDocument<16> doc;
+      doc["raw"] = Tanklevel.getMedian(true);
+      serializeJson(doc, output);
+      request->send(200, "application/json", output);
+    } else request->send(200, "text/plain", (String)Tanklevel.getMedian(true));
   });
   webServer.on("/api/level", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", (String)Tanklevel.getPercentage(true));
+    if (request->contentType() == "application/json") {
+      String output;
+      StaticJsonDocument<16> doc;
+      doc["levelPercent"] = Tanklevel.getPercentage(true);
+      serializeJson(doc, output);
+      request->send(200, "application/json", output);
+    } else request->send(200, "text/plain", (String)Tanklevel.getPercentage(true));
   });
   webServer.on("/api/esp/heap", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getFreeHeap()));
@@ -116,6 +146,22 @@ void setup() {
   });
   webServer.on("/api/esp/freq", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
+  });
+  webServer.on("/api/wifi-info", HTTP_GET, [](AsyncWebServerRequest *request) {
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      DynamicJsonDocument json(1024);
+      json["status"] = "ok";
+      json["ssid"] = WiFi.SSID();
+      json["ip"] = WiFi.localIP().toString();
+      serializeJson(json, *response);
+      request->send(response);
+  });
+  webServer.on("/api/level-info", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument json(3072);
+    for (int i = 0; i < 100; i++) json["val" + String(i)] = Tanklevel.getLevelData(i);
+    serializeJson(json, *response);
+    request->send(response);
   });
   
   webServer.serveStatic("/", LITTLEFS, "/").setDefaultFile("index.html");
@@ -128,6 +174,12 @@ void setup() {
   webServer.addHandler(&events);
 
   AsyncElegantOTA.begin(&webServer);    // Start ElegantOTA
+  
+  webServer.onNotFound([](AsyncWebServerRequest *request) {
+    if (request->contentType() == "application/json") {
+      request->send(404, "application/json", "{\"message\":\"Not found\"}");
+    } else request->send(404, "text/plain", "Not found");
+  });
   webServer.begin();
   Serial.println("HTTP server started");
 
@@ -151,8 +203,9 @@ void loop() {
 
   if (button2.pressed) {
     button2.pressed = false;
-    Tanklevel.abortLevelSetup();
-    //Tanklevel.printData();
+    //ESPAsync_wifiManager.startConfigPortal();
+    //Tanklevel.abortLevelSetup();
+    Tanklevel.printData();
   }
   
   if (Tanklevel.isSetupRunning()) {
@@ -170,11 +223,15 @@ void loop() {
     // run regular operation
     if (millis() - millisStarted > 1000) {
       millisStarted = millis();
+      int val = -1;
       if (Tanklevel.isConfigured()) {
-        int val = Tanklevel.getPercentage();
+        val = Tanklevel.getPercentage();
         events.send(String(val).c_str(), "level", millis());
         Serial.printf("Tank fill status = %d\n", val);
-      } else Serial.println("Tanklevel Sensor not configured, please run the setup!");
+      } else {
+        val = Tanklevel.getMedian();
+        Serial.printf("Tanklevel Sensor not configured, please run the setup! Raw value = %d\n", val);
+      }
     }
   }
   delay(25);

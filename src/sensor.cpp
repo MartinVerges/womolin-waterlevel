@@ -21,6 +21,12 @@ TANKLEVEL::TANKLEVEL() {
 TANKLEVEL::~TANKLEVEL() {
 }
 
+int TANKLEVEL::getLevelData(int perc) {
+  if (perc >= 0 and perc < 100) {
+    return levelConfig.readings[perc];
+  } else return -1;
+}
+
 void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
     hx711.begin(dout, pd_sck, 32);
     NVS_NAMESPACE = nvs;
@@ -42,25 +48,29 @@ void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
 }
 
 bool TANKLEVEL::isSetupRunning() {
+    if (setupConfig.start) return beginLevelSetup();
     return setupConfig.readings[0] > 0;
 }
 
 bool TANKLEVEL::isConfigured() {
+    if (setupConfig.start) { beginLevelSetup(); return false; }
     return levelConfig.readings[0] > 0;
 }
 
-int TANKLEVEL::getMedian() {
-    if (hx711.wait_ready_retry(100)) {
-      return (int)hx711.get_median_value(10);
-    } else {
-      Serial.println("Unable to communicate with the HX711 modul.");
-      return 0;
-    }
+int TANKLEVEL::getMedian(bool cached) {
+  if (cached) return lastMedian;
+  if (hx711.wait_ready_retry(100, 5)) {
+    lastMedian = (int)floor(hx711.get_median_value(10) / 1000);
+    return lastMedian;
+  } else {
+    Serial.println("Unable to communicate with the HX711 modul.");
+    return -1;
+  }
 }
 
 int TANKLEVEL::getPercentage(bool cached) {
-  int val = currentState;
-  if (!cached) val = getMedian();
+  int val = lastState;
+  if (!cached) val = getMedian(false);
   for(int x=99; x>0; x--) {
       if (val > levelConfig.readings[x]) return x+1;
   }
@@ -105,15 +115,24 @@ int TANKLEVEL::findStartCutoffIndex(int endIndex) {
 }
 
 bool TANKLEVEL::beginLevelSetup() {
+  setupConfig.start = false;
   if (!isSetupRunning()) {  // Start the level setup
     setupConfig.valueCount = 0;
-    setupConfig.readings[setupConfig.valueCount++] = hx711.get_max_value(10);
+    setupConfig.readings[setupConfig.valueCount++] = getMedian(false);
     Serial.printf("Begin level setup with minValue of %d\n", setupConfig.readings[0]);
     return true;
   } else {
     Serial.println("Level setup is already running");
     return false;
   }
+}
+
+void TANKLEVEL::setStartAsync() {
+  setupConfig.start = true;
+}
+
+void TANKLEVEL::setEndAsync() {
+  setupConfig.end = true;
 }
 
 void TANKLEVEL::setAbortAsync() {
@@ -126,11 +145,33 @@ bool TANKLEVEL::abortLevelSetup() {
   while(setupConfig.valueCount < MAX_DATA_POINTS) { // cleanup
     setupConfig.readings[setupConfig.valueCount++] = 0;
   }
-  setupConfig.readings[0] = 0;
-  setupConfig.valueCount = 0;
-  setupConfig.abort = false;
+  resetSetupData();
   Serial.println("done");
   return true;
+}
+
+void TANKLEVEL::resetSetupData() {
+  setupConfig.readings[0] = 0;
+  setupConfig.valueCount = 0;
+  setupConfig.start = false;
+  setupConfig.abort = false;
+  setupConfig.end = false;
+}
+
+bool TANKLEVEL::setupFrom2Values(int lower, int upper) {    
+  if (upper < lower) return false;
+  for (size_t Y = 0; Y < 100; Y++) {
+    levelConfig.readings[Y] = (upper - lower) / 100 * Y + lower;
+  }
+  if (levelConfig.readings[0] == lower && levelConfig.readings[99] == upper) {
+    Serial.println("Level config done!"); 
+    levelConfig.setupDone = true;
+    return true;
+  } else {
+    Serial.println("Written data differs to given values! Giving up"); 
+    levelConfig.setupDone = false;
+    return false;
+  }
 }
 
 bool TANKLEVEL::endLevelSetup() {
@@ -139,7 +180,7 @@ bool TANKLEVEL::endLevelSetup() {
 
     while(setupConfig.valueCount < MAX_DATA_POINTS) {
       // force end of setup by filling empty slots
-      setupConfig.readings[setupConfig.valueCount++] = setupConfig.lastread;
+      setupConfig.readings[setupConfig.valueCount++] = lastMedian;
     }
 
     std::sort(std::begin(setupConfig.readings), std::end(setupConfig.readings));
@@ -154,9 +195,9 @@ bool TANKLEVEL::endLevelSetup() {
     int x = startIndex;                        // index of reading[]
     float y1 = 0.00;                           // lower percentage of reading[] index (e.g. entry x equals 55%)
     float y2 = 0.00;                           // upper percentage of reading[] index (e.g. entry x+1 equals 58%)
-    for (size_t Y = 0; Y <=100; Y++) {         // % value (1-100%)
+    for (size_t Y = 0; Y < 100; Y++) {         // % value (1-100%)
       if (Y==0) {
-        levelConfig.readings[Y++] = setupConfig.readings[x];
+        levelConfig.readings[Y] = setupConfig.readings[x];
         continue;
       }
       while (Y > y2 && x <= endIndex) {
@@ -186,21 +227,21 @@ bool TANKLEVEL::endLevelSetup() {
     }
 
     // cleanup
-    setupConfig.readings[0] = 0;
-    setupConfig.valueCount = 0;
+    resetSetupData();
     return true;
 }
 
 int TANKLEVEL::runLevelSetup() {
+  if (setupConfig.start) return beginLevelSetup();
   if (setupConfig.abort) return abortLevelSetup();
+  if (setupConfig.end) return endLevelSetup();
   if (isSetupRunning()) {
     if (setupConfig.valueCount >= MAX_DATA_POINTS) {
       endLevelSetup();
       return 0;
     }
-    setupConfig.lastread = (int)hx711.get_median_value(10);
-    Serial.printf("Recording new entry with a value of %d\n", setupConfig.lastread);
-    setupConfig.readings[setupConfig.valueCount++] = setupConfig.lastread;
-    return setupConfig.lastread;
+    Serial.printf("Recording new entry with a value of %d\n", getMedian(false));
+    setupConfig.readings[setupConfig.valueCount++] = getMedian(true);
+    return lastMedian;
   } else return 0;
 }

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <title>Tank sensor - Setup</title>
+  </head>
+  <body class="d-flex flex-column h-100">
+    <header class="p-3 bg-dark text-white">
+      <div class="container">
+        <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
+          <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
+            <li><a href="/" class="nav-link px-2 text-white">Status</a></li>
+            <li><a href="/setup.html" class="nav-link px-2 text-secondary">Setup</a></li>
+            <li><a href="/update" class="nav-link px-2 text-white">Update</a></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+    <main class="flex-shrink-0">
+      <div class="card visually-x" id="beginSetup">
+        <div class="card-header">
+          Setup for linear tanks
+        </div>
+        <div class="card-body">
+          <div class="mx-auto fs-6 text-center">
+            <p>In this mode, the sensor value is determined when the tank is empty and when it is full.
+              This is only suitable for tanks that have a linear design. </p>
+            <p>Make sure that your sensor is mounted correctly and that the tank has been completely emptied.
+              Then save the current measured value of your sensor.</p>
+
+            <div class="container">
+              <div class="row justify-content-md-center">
+                <div class="col col-lg-2">
+                  <p>Empty tank value</p>
+                </div>
+                <div class="col-md-auto">
+                  <label for="lower" class="visually-hidden">Empty tank value</label>
+                  <input type="number" class="form-control" id="lower">
+                </div>
+                <div class="col col-lg-2">
+                  <button type="button" id="lowerbtn" class="btn btn-info mb-3">Get value</button>
+                </div>
+              </div>
+              <div class="row justify-content-md-center">
+                <div class="col col-lg-2">
+                  <p>Full tank value</p>
+                </div>
+                <div class="col-md-auto">
+                  <label for="upper" class="visually-hidden">Full tank value</label>
+                  <input type="number" class="form-control" id="upper">
+                </div>
+                <div class="col col-lg-2">
+                  <button type="button" id="upperbtn" class="btn btn-info mb-3">Get value</button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-lg px-5 me-3" id="btn-finish">Finish</button>
+          </div>
+        </div>
+      </div>
+      <div class="card visually-hidden" id="error">
+        <div class="card-header">
+          Error
+        </div>
+        <div class="card-body">
+          <div class="mx-auto fs-4 text-center">
+            <p id="errortext"></p>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer class="footer mt-auto py-3 bg-light">
+      <div class="container">
+        <p class="text-muted" style="text-align:center">
+          <a href="https://github.com/MartinVerges/rv-smart-tanksensor" target="_blank">rv-smart-tanksensor</a> (c) 2021 by Martin Verges
+        </p>
+      </div>
+    </footer>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script>
+      $("#lowerbtn").click(function() {
+        $.get("/api/rawvalue", function( data ) {
+          $("#lower").val(data);
+        })
+        .fail(function() {
+          $("#errortext").text("Unable to retrive data. Please try again!");
+          $("#error").show().removeClass("visually-hidden");
+        });
+      });
+      
+      $("#upperbtn").click(function() {
+        $.get("/api/rawvalue", function( data ) {
+          $("#upper").val(data);
+        })
+        .fail(function() {
+          $("#errortext").text("Unable to retrive data. Please try again!");
+          $("#error").show().removeClass("visually-hidden");
+        });
+      });
+
+      $("#btn-finish").click(function() {
+        $.ajax("/api/setup/values", {
+          type : 'POST',
+          data : JSON.stringify({ upper: parseInt($("#upper").val()), lower: parseInt($("#lower").val()) }),
+          dataType : "json",
+          contentType : 'application/json',
+          success : function(data, status, jqXHR) { // success callback
+            $(location).prop('href', '/')
+          },
+          fail : function() {
+            $("#beginSetup").hide().addClass("visually-hidden");
+            $("#errortext").text("Unfortunately, it was not possible to complete the setup successfully. Please try again!");
+            $("#error").show().removeClass("visually-hidden");
+          }
+        });
+      });
+      
+      if (!!window.EventSource) {
+        var source = new EventSource('/events');
+
+        source.addEventListener('open', function(e) {
+          console.log("Events Connected");
+        }, false);
+
+        source.addEventListener('error', function(e) {
+          if (e.target.readyState != EventSource.OPEN) {
+            console.log("Events Disconnected");
+          }
+        }, false);
+
+        source.addEventListener('setup', function(e) {
+          console.log("new datapoint received");
+        }, false);
+        source.addEventListener('setuperror', function(e) {
+          console.log("an error occured durring setup: " + e);
+        }, false);
+      }
+    </script>
+  </body>
+</html>

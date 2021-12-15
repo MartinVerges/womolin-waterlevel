@@ -20,16 +20,17 @@
     </header>
     <div class="card visually-hidden" id="beginSetup">
       <div class="card-header">
-        Beginning the setup
+        Setup for individual tanks
       </div>
       <div class="card-body">
-        <div class="mx-auto fs-4 text-center">
+        <div class="mx-auto fs-6   text-center">
           <p>To set up the sensor, it is necessary to install it completely in the tank and connect it. 
             Please pay particular attention to the perfect tightness of the hose and that it reaches straight to the bottom of the tank. 
             Otherwise, the entire content would not be detected and the display would be incorrect.</p>
           <p>Now prepare everything for filling the tank.
             As soon as you can turn on the water tap, start the measuring process and then start filling.</p>
-            <button type="button" class="btn btn-primary btn-lg px-5" id="btn-start">Start</button>
+            <button type="button" class="btn btn-primary btn-lg px-5 ms-3" id="btn-start">Start</button>
+            <a href="/setup2.html" class="btn btn-secondary btn-lg px-5 ms-3" id="btn-start">Alternative mode</a>
         </div>
       </div>
     </div>
@@ -38,7 +39,7 @@
         Carrying out the measurement process
       </div>
       <div class="card-body">
-        <div class="mx-auto fs-4 text-center">
+        <div class="mx-auto fs-6 text-center">
           <p>The water flow should remain as constant as possible during the entire filling process.
             This contributes to high accuracy.</p>
           <p>Once the tank is completely filled, you can complete the process.</p>
@@ -70,7 +71,7 @@
       $("#btn-start").click(function() {
         $("#beginSetup, #error").hide().addClass("visually-hidden");
 
-        $.post("/api/setup/begin", function( data ) {
+        $.post("/api/setup/start", function( data ) {
           $("#runSetup").show().removeClass("visually-hidden");;
         })
         .fail(function() {

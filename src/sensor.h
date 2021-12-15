@@ -14,21 +14,26 @@
 class TANKLEVEL
 {
 	private:
-        float LOWER_END = 0.010;                   // value increase to start recording (tank is empty)
-        float UPPER_END = 0.990;                   // value limit to cutoff data (tank is full)
+        // we cut of values due to sensor or adc noise
+        float LOWER_END = 0.020;                   // value increase to start recording (tank is empty)
+        float UPPER_END = 0.980;                   // value limit to cutoff data (tank is full)
+
         String NVS_NAMESPACE = "tanksensor";       // NVS Storage to write and read values
 
         struct config_t {
             bool setupDone = false;                // Configuration done or not yet initialized sensor
             int readings[100] = {0};               // pressure readings to map to percentage filling
         } levelConfig;
-        int currentState = 0;                      // last reading in percent
+
+        int lastState = 0;                         // last reading in percent
+        int lastMedian = 0;                        // last reading median value
 
         struct state_t {
-            int abort = false;                     // Abort current running setup (due to ASYNC issues as var)
+            int start = false;                     // Async start the setup
+            int abort = false;                     // Async Abort current running setup
+            int end = false;                       // Async End current running setup
             int valueCount = 0;                    // current number of entries in readings[]
             int minValue = 0.00;                   // lowest value to start recording
-            int lastread = 0.00;                   // last redading while in setup  
             int readings[MAX_DATA_POINTS] = {0};   // data readings from pressure sensor while running level setup
         } setupConfig;
 
@@ -41,6 +46,9 @@ class TANKLEVEL
         // Print out the reading array to Serial (for debugging) 
         void printData(int* readings, size_t count);
 
+        // Reset the setupConfig struct
+        void resetSetupData();
+
 	public:
 		TANKLEVEL();
 		virtual ~TANKLEVEL();
@@ -52,16 +60,22 @@ class TANKLEVEL
         void setLimits(float lower_end, float upper_end);
 
         // Read Median(10) raw value from sensor
-        int getMedian();
+        int getMedian(bool cached = false);
 
         // Calculate current level in percent. Requires valid level setup.
         int getPercentage(bool cached = false);
+
+        // Get the configured level for a percentage value
+        int getLevelData(int perc);
 
         // Check if level setup was done
         bool isConfigured();
 
         // Check if a level setup is currently running
         bool isSetupRunning();
+
+        // Create a level db from lower and upper reading (only for tanks with linear form)
+        bool setupFrom2Values(int lower, int upper);
 
         // Start a new level setup
         bool beginLevelSetup();
@@ -71,6 +85,12 @@ class TANKLEVEL
 
         // End the level setup and store data to NVS
         bool endLevelSetup();
+
+        // Request to start a new level Setup
+        void setStartAsync();
+
+        // Request an end to the current running level setup
+        void setEndAsync();
 
         // Request an abort of the current running level setup
         void setAbortAsync();
