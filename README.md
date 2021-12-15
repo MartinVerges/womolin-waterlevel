@@ -21,6 +21,13 @@ The following aspects are the focus of this project:
  * Stand alone usable
  * Usable in all liquids
 
+## Show me how it looks
+
+![Live level view](images/level.jpg)
+![Setup for linear Tanks](images/setup-linear.jpg)
+![Setup for individual Tanks](images/setup-dynamic.jpg)
+![Integrated over the air update](images/ota.jpg)
+
 ## BOM - Bill of Materials
 
 To build this sensor yourself, you need:
