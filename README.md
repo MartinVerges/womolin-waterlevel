@@ -23,10 +23,7 @@ The following aspects are the focus of this project:
 
 ## Show me how it looks
 
-![Live level view](images/level.jpg)
-![Setup for linear Tanks](images/setup-linear.jpg)
-![Setup for individual Tanks](images/setup-dynamic.jpg)
-![Integrated over the air update](images/ota.jpg)
+<img src="images/level.jpg?raw=true" alt="Live level view" width="20%"><img src="images/setup-linear.jpg?raw=true" alt="Setup for linear tanks" width="20%"><img src="images/setup-dynamic.jpg?raw=true" alt="Setup for dynamic tanks" width="20%"><img src="images/ota.jpg?raw=true" alt="Integrated over the air update" width="20%">
 
 ## BOM - Bill of Materials
 
