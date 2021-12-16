@@ -23,7 +23,11 @@ The following aspects are the focus of this project:
 
 ## Show me how it looks
 
+#### Screenshots from the mobile UI
 <img src="images/level.jpg?raw=true" alt="Live level view" width="20%"><img src="images/setup-linear.jpg?raw=true" alt="Setup for linear tanks" width="20%"><img src="images/setup-dynamic.jpg?raw=true" alt="Setup for dynamic tanks" width="20%"><img src="images/ota.jpg?raw=true" alt="Integrated over the air update" width="20%">
+
+#### Photos of the prototype
+<img src="images/prototype1.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype2.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype3.jpg?raw=true" alt="Prototype Pictures" width="30%">
 
 ## BOM - Bill of Materials
 
