@@ -30,7 +30,7 @@ The following aspects are the focus of this project:
 <img src="images/prototype1.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype2.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype3.jpg?raw=true" alt="Prototype Pictures" width="30%">
 
 #### Schematics
-<img src="images/schematic.jpg?raw=true" alt="Schematic" width="40%">
+<img src="images/schematic.png?raw=true" alt="Schematic" width="40%">
 
 ## BOM - Bill of Materials
 
