@@ -23,6 +23,10 @@ The following aspects are the focus of this project:
 
 ## Show me how it looks
 
+#### Video Demonstration
+[![Live video demonstration](https://img.youtube.com/vi/gYvKPjnI3uc/0.jpg)](https://www.youtube.com/watch?v=gYvKPjnI3uc)
+
+
 #### Screenshots from the mobile UI
 <img src="images/level.jpg?raw=true" alt="Live level view" width="20%"><img src="images/setup-linear.jpg?raw=true" alt="Setup for linear tanks" width="20%"><img src="images/setup-dynamic.jpg?raw=true" alt="Setup for dynamic tanks" width="20%"><img src="images/ota.jpg?raw=true" alt="Integrated over the air update" width="20%">
 
