@@ -37,6 +37,10 @@ The following aspects are the focus of this project:
 #### Schematics
 <img src="images/schematic.png?raw=true" alt="Schematic" width="40%">
 
+#### Housing
+
+The 3D printed housing can be found on [onshape as a editable document](https://cad.onshape.com/documents/dc5b401f0da730c8b1faabf2/w/d0c67204fcfba4efb6f8e658/e/1418b0722486737a7a11290c?renderMode=0&uiState=61bdca68d4b418569530fb02), or inside the folder [housing/*](housing/) as STL files.
+
 ## BOM - Bill of Materials
 
 To build this sensor yourself, you need:
