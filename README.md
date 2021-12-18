@@ -26,12 +26,13 @@ The following aspects are the focus of this project:
 #### Video Demonstration
 [![Live video demonstration](https://img.youtube.com/vi/gYvKPjnI3uc/0.jpg)](https://www.youtube.com/watch?v=gYvKPjnI3uc)
 
-
 #### Screenshots from the mobile UI
 <img src="images/level.jpg?raw=true" alt="Live level view" width="20%"><img src="images/setup-linear.jpg?raw=true" alt="Setup for linear tanks" width="20%"><img src="images/setup-dynamic.jpg?raw=true" alt="Setup for dynamic tanks" width="20%"><img src="images/ota.jpg?raw=true" alt="Integrated over the air update" width="20%">
 
 #### Photos of the prototype
 <img src="images/prototype1.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype2.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype3.jpg?raw=true" alt="Prototype Pictures" width="30%">
+
+<img src="images/prototype-housing1.jpg?raw=true" alt="Prototype inside the housing" width="30%"><img src="images/prototype-housing2.jpg?raw=true" alt="Prototype inside the housing" width="30%">
 
 #### Schematics
 <img src="images/schematic.png?raw=true" alt="Schematic" width="40%">
@@ -41,13 +42,14 @@ The following aspects are the focus of this project:
 To build this sensor yourself, you need:
 
  * 1x ESP32 ESP32-WROOM-32 (between 1.75€ and 8.00€)
- * 1x MPX53DP Pressure Sensor (~ 8.00€)
+ * 1x MPX53DP Pressure Sensor (~8.00€)
  * 1x HX711 24-bit ADC (~2.50€)
  * 1x Pushbutton (~0.15€)
  * 1x Tube with 4mm inner width (~1€) 
+ * 1x Small 12V to 3.3V power supply (~1€)
+ * 1x Connector for the Tank itself, strongly depending on your indivudal situation
  
  In addition you need some few small cables and soldering equipment to build the circuit.
-
 
 ## How to build this PlatformIO based project
 
