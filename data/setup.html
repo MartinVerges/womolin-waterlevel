@@ -18,43 +18,31 @@
         </div>
       </div>
     </header>
-    <div class="card visually-hidden" id="beginSetup">
-      <div class="card-header">
-        Setup for individual tanks
-      </div>
-      <div class="card-body">
-        <div class="mx-auto fs-6   text-center">
-          <p>To set up the sensor, it is necessary to install it completely in the tank and connect it. 
-            Please pay particular attention to the perfect tightness of the hose and that it reaches straight to the bottom of the tank. 
-            Otherwise, the entire content would not be detected and the display would be incorrect.</p>
-          <p>Now prepare everything for filling the tank.
-            As soon as you can turn on the water tap, start the measuring process and then start filling.</p>
-            <button type="button" class="btn btn-primary btn-lg px-5 ms-3" id="btn-start">Start</button>
-            <a href="/setup2.html" class="btn btn-secondary btn-lg px-5 ms-3" id="btn-start">Alternative mode</a>
+    <div class="row row-cols-1 row-cols-md-2 mb-2 text-center">
+      <div class="col">
+        <div class="card mb-4 rounded-3 shadow-sm">
+          <div class="card-header py-3">
+            <h4 class="my-0 fw-normal">Uniform tanks</h4>
+          </div>
+          <div class="card-body">
+            <a href="/setup-uniform.html"><img src="images/tank-uniform.png" alt="Uniformed tank" class="mb-3">
+              <br>
+              <button type="button" class="w-75 btn btn-lg btn-primary">continue</button>
+            </a>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="card visually-hidden" id="runSetup">
-      <div class="card-header">
-        Carrying out the measurement process
-      </div>
-      <div class="card-body">
-        <div class="mx-auto fs-6 text-center">
-          <p>The water flow should remain as constant as possible during the entire filling process.
-            This contributes to high accuracy.</p>
-          <p>Once the tank is completely filled, you can complete the process.</p>
-          <button type="button" class="btn btn-primary btn-lg px-5 me-3" id="btn-finish">Finish</button>
-          <button type="button" class="btn btn-danger btn-lg px-5 ms-3" id="btn-abort">Abort</button>
-        </div>
-      </div>
-    </div>
-    <div class="card visually-hidden" id="error">
-      <div class="card-header">
-        Error
-      </div>
-      <div class="card-body">
-        <div class="mx-auto fs-4 text-center">
-          <p id="errortext"></p>
+      <div class="col">
+        <div class="card mb-4 rounded-3 shadow-sm">
+          <div class="card-header py-3">
+            <h4 class="my-0 fw-normal">Irregular formed tanks</h4>
+          </div>
+          <div class="card-body">
+            <a href="/setup-irregular.html"><img src="images/tank-irregular.png" alt="Irregular formed tank" class="mb-3">
+              <br>
+              <button type="button" class="w-75 btn btn-lg btn-primary">continue</button>
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -67,75 +55,5 @@
     </footer>
     <script src="js/jquery-3.6.0.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
-    <script>
-      $("#btn-start").click(function() {
-        $("#beginSetup, #error").hide().addClass("visually-hidden");
-
-        $.post("/api/setup/start", function( data ) {
-          $("#runSetup").show().removeClass("visually-hidden");;
-        })
-        .fail(function() {
-          $("#beginSetup, #runSetup").hide().addClass("visually-hidden");
-          $("#errortext").text("Unfortunately it was not possible to start the setup. Please try again!");
-          $("#error").show().removeClass("visually-hidden");;
-        });
-      });
-
-      $("#btn-finish").click(function() {
-        $("#beginSetup, #error").hide().addClass("visually-hidden");
-
-        $.post("/api/setup/end", function( data ) {
-          $(location).prop('href', '/')
-        })
-        .fail(function() {
-          $("#beginSetup, #runSetup").hide().addClass("visually-hidden");
-          $("#errortext").text("Unfortunately, it was not possible to complete the setup successfully. Please try again!");
-          $("#error").show().removeClass("visually-hidden");
-        });
-      });
-      $("#btn-abort").click(function() {
-        $("#beginSetup, #error").hide().addClass("visually-hidden");
-
-        $.post("/api/setup/abort", function( data ) {
-          $("#errortext").text("The setup was aborted by the user.");
-          $("#error").show().removeClass("visually-hidden");
-          $("#beginSetup, #runSetup").hide().addClass("visually-hidden");
-        })
-        .fail(function() {
-          $("#beginSetup, #runSetup").hide();
-          $("#errortext").text("The setup could not be terminated.");
-          $("#error").show().removeClass("visually-hidden");
-        });
-      });
-
-      $.get("/api/setup/status", function( state ) {
-        if (state == 0 || state == "0") {
-          $("#beginSetup").show().removeClass("visually-hidden");;
-        } else {
-          $("#runSetup").show().removeClass("visually-hidden");;
-        }
-      })
-
-      if (!!window.EventSource) {
-        var source = new EventSource('/events');
-
-        source.addEventListener('open', function(e) {
-          console.log("Events Connected");
-        }, false);
-
-        source.addEventListener('error', function(e) {
-          if (e.target.readyState != EventSource.OPEN) {
-            console.log("Events Disconnected");
-          }
-        }, false);
-
-        source.addEventListener('setup', function(e) {
-          console.log("new datapoint received");
-        }, false);
-        source.addEventListener('setuperror', function(e) {
-          console.log("an error occured durring setup: " + e);
-        }, false);
-      }
-    </script>
   </body>
 </html>
