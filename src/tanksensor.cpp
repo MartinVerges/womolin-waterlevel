@@ -11,7 +11,6 @@
 
 #define uS_TO_S_FACTOR   1000000           // Conversion factor for micro seconds to seconds
 #define TIME_TO_SLEEP    1                 // WakeUp interval
-#define ESP_DRD_USE_LITTLEFS    true       // Write double restart information to FS
 
 #include <Arduino.h>
 #include <AsyncElegantOTA.h>
@@ -97,19 +96,12 @@ void setup() {
   Serial.printf("[WIFI] Starting Async_AutoConnect_ESP32_minimal on %s\n", ARDUINO_BOARD);
   Serial.printf("[WIFI] %s\n", ESP_ASYNC_WIFIMANAGER_VERSION);
 
-  drd = new DoubleResetDetector(10, 0);
-  if (drd->detectDoubleReset()) { 
-    Serial.println("[DRD] Detected double reset or initial run, requesting Wifi configuration portal!");
-    startWifiConfigPortal = true;
-  }
-
   ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, hostName.c_str());
   if (!startWifiConfigPortal && ESPAsync_wifiManager.WiFi_SSID() == "") {
     Serial.println("[WIFI] No AP credentials found, requesting Wifi configuration portal!");
     startWifiConfigPortal = true;
   }
   if (startWifiConfigPortal) {
-    drd->stop();
     Serial.println("[WIFI] Starting configuration portal");
     ESPAsync_wifiManager.startConfigPortal();
   } else {
@@ -125,8 +117,6 @@ void setup() {
 }
 
 void loop() {
-  drd->loop(); // refresh timeout for double reset detection
-
   // if WiFi is down, try reconnecting
   if (millis() - Timing.lastWifiCheck > Timing.wifiInterval) {
     Timing.lastWifiCheck = millis();
