@@ -8,6 +8,8 @@
 **/
 
 #ifndef TANKLEVEL_h
+#define TANKLEVEL_h
+
 #define MAX_DATA_POINTS 255                        // how many level data points to store (increased accuracy)
 #include <Arduino.h>
 

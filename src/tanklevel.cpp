@@ -10,7 +10,7 @@
 #include <Arduino.h>
 #include <HX711.h>
 #include <Preferences.h>
-#include "sensor.h"
+#include "tanklevel.h"
 
 HX711 hx711;
 Preferences preferences;
@@ -33,7 +33,7 @@ void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
 
     if (!preferences.begin(NVS_NAMESPACE.c_str(), false)) {
         Serial.println("Error opening NVS Namespace, giving up...");
-    } else {
+    } else if (!levelConfig.setupDone) { // from RTC memory
         levelConfig.setupDone = preferences.getBool("setupDone", false);
         if (levelConfig.setupDone) {
             Serial.println("LevelData restored from Storage...");

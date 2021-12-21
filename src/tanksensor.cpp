@@ -10,62 +10,26 @@
 #define USE_LITTLEFS true
 
 #define uS_TO_S_FACTOR   1000000           // Conversion factor for micro seconds to seconds
-#define TIME_TO_SLEEP    60                // WakeUp at least once a minute
+#define TIME_TO_SLEEP    1                 // WakeUp interval
 #define ESP_DRD_USE_LITTLEFS    true       // Write double restart information to FS
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <AsyncElegantOTA.h>
 #include <AsyncTCP.h>
-#include <DNSServer.h>
+#include <driver/adc.h>
+#include <driver/dac.h>
+#include <esp_sleep.h>
 #include <esp_wifi.h>
-#include <ESPAsyncWebServer.h>
 #include <ESPAsync_WiFiManager.h> 
 #include <ESPmDNS.h>
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <sensor.h>
-#include <ESP_DoubleResetDetector.h>
+#include <wifi-events.h>
 
-RTC_DATA_ATTR int bootCount = 0;           // Counter to keep track
-
-const int GPIO_DAC_LEVEL_OUT = 25;         // Provide current level using a 1-3V level
-const int GPIO_HX711_DOUT = 33;            // GPIO pin to use for DT or DOUT
-const int GPIO_HX711_SCK = 32;             // GPIO pin to use for SCK
-const int webserverPort = 80;              // Start the Webserver on this port
-const String NVS_NAMESPACE = "tanksensor"; // Preferences.h namespace to store settings
-
-struct timing_t {
-  // Wifi interval in loop()
-  unsigned long lastWifiCheck = 0;         // last millis() from WifiCheck
-  unsigned int wifiInterval = 1000;        // Interval in ms to execute code
-
-  // Sensor data in loop()
-  unsigned long lastSensorRead = 0;        // last millis() from Sensor read
-  unsigned int sensorInterval = 1000;      // Interval in ms to execute code
-
-  // Setup executing in loop()
-  unsigned long lastSetupRead = 0;         // last millis() from Setup run
-  unsigned int setupInterval = 250;        // Interval in ms to execute code
-} Timing;
-
-bool startWifiConfigPortal = false;        // Start the config portal on setup()
-
-TANKLEVEL Tanklevel;
-
-struct Button {
-  const uint8_t PIN;
-  bool pressed;
-};
-Button button1 = {4, false};               // Run the setup (use a RTC GPIO)
-
-String hostName = "tanksensor-" + String((uint32_t)ESP.getEfuseMac(), HEX);
-DNSServer dnsServer;
-DoubleResetDetector* drd;
-AsyncWebServer webServer(webserverPort);
-AsyncEventSource events("/events");
+#include "global.h"
+#include "api-routes.h"
 
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
@@ -84,34 +48,21 @@ void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
 }
 
-void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.println("[WIFI] Connected successfully!");
-}
-
-void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.print("[WIFI] WiFi connected with IP address: ");
-  Serial.println(WiFi.localIP());
-}
-
-void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.println("[WIFI] Disconnected from WiFi access point with Reason:");
-  Serial.println(info.disconnected.reason);
-  Serial.println("Trying to Reconnect");
-  WiFi.reconnect();
-}
-
-void WiFIApStarted(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.println("[WIFI] AP mode started!");
-}
-
-void WiFIApStopped(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.println("[WIFI] AP mode stopped!");
-}
-
 void add_mdns_services() {
   Serial.println("[MDNS] Starting mDNS Service!");
   MDNS.begin(hostName.c_str());
   MDNS.addService("http", "tcp", 80);
+}
+
+void dacValue(uint8_t percentage) {
+  if (percentage >= 0 && percentage <= 100) {
+    float start = DAC_MIN_MVOLT / DAC_VCC * 255;   // startvolt / maxvolt * datapoints
+    float end = DAC_MAX_MVOLT / DAC_VCC * 255;     // endvolt / maxvolt * datapoints
+    uint8_t val = round(start + (end-start) / 100 * percentage);
+    dacWrite(GPIO_DAC_LEVEL_OUT, val);  // ESP32 values 255= 3.3V 128= 1.65V
+  } else {
+    dacWrite(GPIO_DAC_LEVEL_OUT, 0);
+  }
 }
 
 void setup() {
@@ -127,28 +78,23 @@ void setup() {
   Serial.printf("[GPIO] Configuration of GPIO %d as INPUT_PULLUP ... ", button1.PIN);
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, ISR_button1, FALLING);
+  esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
   Serial.println("done");
 
   Serial.printf("[GPIO] Configuration of GPIO %d as OUTPUT ... ", GPIO_DAC_LEVEL_OUT);
   pinMode(GPIO_DAC_LEVEL_OUT, ANALOG);
-  dacWrite(GPIO_DAC_LEVEL_OUT, 0); //255= 3.3V 128=1.65V
   Serial.println("done");
   
-
   Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, NVS_NAMESPACE);
   
   if (!LITTLEFS.begin(true)) {
-    Serial.println("An Error has occurred while mounting LITTLEFS");
+    Serial.println("[FS] An Error has occurred while mounting LITTLEFS");
     ESP.restart();
   }
 
-  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);
-  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP);
-  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
-  WiFi.onEvent(WiFIApStarted, SYSTEM_EVENT_AP_START);
-  WiFi.onEvent(WiFIApStopped, SYSTEM_EVENT_AP_STOP);
+  WiFiRegisterEvents(WiFi);
 
-  Serial.printf("Starting Async_AutoConnect_ESP32_minimal on %s\n", ARDUINO_BOARD);
+  Serial.printf("[WIFI] Starting Async_AutoConnect_ESP32_minimal on %s\n", ARDUINO_BOARD);
   Serial.printf("[WIFI] %s\n", ESP_ASYNC_WIFIMANAGER_VERSION);
 
   drd = new DoubleResetDetector(10, 0);
@@ -170,114 +116,13 @@ void setup() {
     ESPAsync_wifiManager.autoConnect();
   }
 
-  webServer.on("/api/setup/start", HTTP_POST, [](AsyncWebServerRequest *request) {
-    Tanklevel.setStartAsync();
-    if (request->contentType() == "application/json") {
-      request->send(200, "application/json", "{\"message\":\"Begin of Setup requested\"}");
-    } else request->send(200, "text/plain", "Begin of Setup requested");
-  });
-  webServer.on("/api/setup/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (request->contentType() == "application/json") {
-      String output;
-      StaticJsonDocument<16> doc;
-      doc["setupIsRunning"] = Tanklevel.isSetupRunning();
-      serializeJson(doc, output);
-      request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", String(Tanklevel.isSetupRunning()));
-  });
-  webServer.on("/api/setup/end", HTTP_POST, [](AsyncWebServerRequest *request) {
-    Tanklevel.setEndAsync();
-    if (request->contentType() == "application/json") {
-      request->send(200, "application/json", "{\"message\":\"End of Setup requested\"}");
-    } else request->send(200, "text/plain", "End of Setup requested");
-  });
-  webServer.on("/api/setup/abort", HTTP_POST, [](AsyncWebServerRequest *request) {
-    Tanklevel.setAbortAsync();
-    if (request->contentType() == "application/json") {
-      request->send(200, "application/json", "{\"message\":\"Abort requested\"}");
-    } else request->send(200, "text/plain", "Abort requested");
-  });
-  webServer.onRequestBody([](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
-    Serial.println("Running");
-    if (request->url() == "/api/setup/values" && request->method() == HTTP_POST) {
-      DynamicJsonDocument jsonBuffer(64);
-      deserializeJson(jsonBuffer, (const char*)data);
-
-      if (!jsonBuffer["lower"].is<int>() || !jsonBuffer["upper"].is<int>()) {
-        request->send(422, "text/plain", "Invalid data");
-        return;
-      }
-      if (Tanklevel.setupFrom2Values(jsonBuffer["lower"], jsonBuffer["upper"])) {
-        request->send(500, "text/plain", "Unable to process data");
-      } else request->send(200, "application/json", "{\"message\":\"Setup completed\"}");
-    }
-  });
-  webServer.on("/api/rawvalue", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (request->contentType() == "application/json") {
-      String output;
-      StaticJsonDocument<16> doc;
-      doc["raw"] = Tanklevel.getMedian(true);
-      serializeJson(doc, output);
-      request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)Tanklevel.getMedian(true));
-  });
-  webServer.on("/api/level", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (request->contentType() == "application/json") {
-      String output;
-      StaticJsonDocument<16> doc;
-      doc["levelPercent"] = Tanklevel.getPercentage(true);
-      serializeJson(doc, output);
-      request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)Tanklevel.getPercentage(true));
-  });
-  webServer.on("/api/esp/heap", HTTP_GET, [](AsyncWebServerRequest * request) {
-    request->send(200, "text/plain", String(ESP.getFreeHeap()));
-  });
-  webServer.on("/api/esp/cores", HTTP_GET, [](AsyncWebServerRequest * request) {
-    request->send(200, "text/plain", String(ESP.getChipCores()));
-  });
-  webServer.on("/api/esp/freq", HTTP_GET, [](AsyncWebServerRequest * request) {
-    request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
-  });
-  webServer.on("/api/wifi-info", HTTP_GET, [](AsyncWebServerRequest *request) {
-      AsyncResponseStream *response = request->beginResponseStream("application/json");
-      DynamicJsonDocument json(1024);
-      json["status"] = "ok";
-      json["ssid"] = WiFi.SSID();
-      json["ip"] = WiFi.localIP().toString();
-      serializeJson(json, *response);
-      request->send(response);
-  });
-  webServer.on("/api/level-info", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonDocument json(3072);
-    for (int i = 0; i < 100; i++) json["val" + String(i)] = Tanklevel.getLevelData(i);
-    serializeJson(json, *response);
-    request->send(response);
-  });
-  
-  webServer.serveStatic("/", LITTLEFS, "/").setDefaultFile("index.html");
-  
-  events.onConnect([](AsyncEventSourceClient *client) {
-    if (client->lastId()) {
-      Serial.printf("[WEB] Client reconnected! Last message ID that it got is: %u\n", client->lastId());
-    }
-  });
-  webServer.addHandler(&events);
-
+  APIRegisterRoutes();
   AsyncElegantOTA.begin(&webServer);    // Start ElegantOTA
-  
-  webServer.onNotFound([](AsyncWebServerRequest *request) {
-    if (request->contentType() == "application/json") {
-      request->send(404, "application/json", "{\"message\":\"Not found\"}");
-    } else request->send(404, "text/plain", "Not found");
-  });
   webServer.begin();
   Serial.println("[WEB] HTTP server started");
 
   add_mdns_services();
 }
-
 
 void loop() {
   drd->loop(); // refresh timeout for double reset detection
@@ -319,7 +164,7 @@ void loop() {
       if (Tanklevel.isConfigured()) {
         val = Tanklevel.getPercentage();
         events.send(String(val).c_str(), "level", millis());
-        dacWrite(GPIO_DAC_LEVEL_OUT, 255/100*val); //255= 3.3V 128=1.65V
+        dacValue(val); 
         Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getMedian(true));
       } else {
         val = Tanklevel.getMedian();
@@ -327,5 +172,7 @@ void loop() {
       }
     }
   }
-  delay(25);
+  // delay(25);
+  Serial.println("sleep");
+  esp_light_sleep_start();
 }
