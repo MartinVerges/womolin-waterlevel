@@ -24,7 +24,7 @@ class TANKLEVEL
 
         struct config_t {
             bool setupDone = false;                // Configuration done or not yet initialized sensor
-            int readings[100] = {0};               // pressure readings to map to percentage filling
+            int readings[101] = {0};               // pressure readings to map to percentage filling 0% - 100%
         } levelConfig;
 
         int lastState = 0;                         // last reading in percent
@@ -50,6 +50,9 @@ class TANKLEVEL
 
         // Reset the setupConfig struct
         void resetSetupData();
+
+        // Write current leveldata to non volatile storage
+        bool writeToNVS();
 
 	public:
 		TANKLEVEL();

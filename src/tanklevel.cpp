@@ -21,40 +21,57 @@ TANKLEVEL::TANKLEVEL() {
 TANKLEVEL::~TANKLEVEL() {
 }
 
+bool TANKLEVEL::writeToNVS() {
+  if (preferences.begin(NVS_NAMESPACE.c_str(), false)) {
+    preferences.clear();
+    preferences.putBool("setupDone", true);
+    for (uint8_t i = 0; i <= 100; i++) {
+      preferences.putInt(String("val" + String(i)).c_str(), levelConfig.readings[i]);
+    }
+    preferences.end();
+    return true;
+  } else {
+    Serial.println("Unable to write data to NVS, giving up...");
+    return false;
+  }
+}
+
 int TANKLEVEL::getLevelData(int perc) {
-  if (perc >= 0 and perc < 100) {
+  if (perc >= 0 and perc <= 100) {
     return levelConfig.readings[perc];
   } else return -1;
 }
 
 void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
-    hx711.begin(dout, pd_sck, 32);
-    NVS_NAMESPACE = nvs;
+  hx711.begin(dout, pd_sck, 32);
+  NVS_NAMESPACE = nvs;
 
-    if (!preferences.begin(NVS_NAMESPACE.c_str(), false)) {
-        Serial.println("Error opening NVS Namespace, giving up...");
-    } else if (!levelConfig.setupDone) { // from RTC memory
-        levelConfig.setupDone = preferences.getBool("setupDone", false);
-        if (levelConfig.setupDone) {
-            Serial.println("LevelData restored from Storage...");
-            for (uint8_t i = 0; i < 100; i++) {
-                levelConfig.readings[i] = (float)preferences.getInt(String("val" + String(i)).c_str(), 0);
-            }
-        } else {
-            Serial.println("No stored configuration found on NVS...");
-        }
-        preferences.end();
+  if (!preferences.begin(NVS_NAMESPACE.c_str(), false)) {
+    Serial.println("Error opening NVS Namespace, giving up...");
+  } else if (levelConfig.setupDone) { // from RTC memory
+    Serial.println("LevelData already loaded");
+  } else {
+    levelConfig.setupDone = preferences.getBool("setupDone", false);
+    if (levelConfig.setupDone) {
+      Serial.println("LevelData restored from Storage...");
+      for (uint8_t i = 0; i <= 100; i++) {
+        levelConfig.readings[i] = (float)preferences.getInt(String("val" + String(i)).c_str(), 0);
+      }
+    } else {
+      Serial.println("No stored configuration found on NVS...");
     }
+    preferences.end();
+  }
 }
 
 bool TANKLEVEL::isSetupRunning() {
-    if (setupConfig.start) return beginLevelSetup();
-    return setupConfig.readings[0] > 0;
+  if (setupConfig.start) return beginLevelSetup();
+  return setupConfig.readings[0] > 0;
 }
 
 bool TANKLEVEL::isConfigured() {
-    if (setupConfig.start) { beginLevelSetup(); return false; }
-    return levelConfig.readings[0] > 0;
+  if (setupConfig.start) { beginLevelSetup(); return false; }
+  return levelConfig.readings[0] > 0;
 }
 
 int TANKLEVEL::getMedian(bool cached) {
@@ -71,15 +88,15 @@ int TANKLEVEL::getMedian(bool cached) {
 int TANKLEVEL::getPercentage(bool cached) {
   int val = lastState;
   if (!cached) val = getMedian(false);
-  for(int x=99; x>0; x--) {
-      if (val > levelConfig.readings[x]) return x+1;
+  for(int x=100; x>0; x--) {
+    if (val >= levelConfig.readings[x]) return x;
   }
   return 0;
 }
 
 void TANKLEVEL::setLimits(float lower_end, float upper_end) {
-    LOWER_END = lower_end;
-    UPPER_END = upper_end;
+  LOWER_END = lower_end;
+  UPPER_END = upper_end;
 }
 
 void TANKLEVEL::printData(int* readings, size_t count) {
@@ -87,7 +104,7 @@ void TANKLEVEL::printData(int* readings, size_t count) {
 }
 
 void TANKLEVEL::printData() {
-    printData(levelConfig.readings, 100);
+    printData(levelConfig.readings, 101);
 }
 
 // Search through the setupConfig sensor readings and find the upper limit cutoff index
@@ -160,75 +177,70 @@ void TANKLEVEL::resetSetupData() {
 
 bool TANKLEVEL::setupFrom2Values(int lower, int upper) {    
   if (upper < lower) return false;
-  for (size_t Y = 0; Y < 100; Y++) {
-    levelConfig.readings[Y] = (upper - lower) / 100 * Y + lower;
+  for (size_t Y = 0; Y <= 100; Y++) {
+    levelConfig.readings[Y] = (upper - lower) / 100.0 * Y + lower;
+    // Serial.println(levelConfig.readings[Y]);
   }
-  if (levelConfig.readings[0] == lower && levelConfig.readings[99] == upper) {
+  if (levelConfig.readings[0] == lower && levelConfig.readings[100] == upper) {
     Serial.println("Level config done!"); 
     levelConfig.setupDone = true;
+    writeToNVS();
     return true;
   } else {
-    Serial.println("Written data differs to given values! Giving up"); 
+    Serial.printf("Written data differs (%d vs %d) and (%d vs %d) to given values! Giving up!\n", 
+      levelConfig.readings[0], lower,
+      levelConfig.readings[100], upper
+    ); 
     levelConfig.setupDone = false;
     return false;
   }
 }
 
 bool TANKLEVEL::endLevelSetup() {
-    if (setupConfig.abort) return abortLevelSetup();
-    Serial.println("Exiting setup");
+  if (setupConfig.abort) return abortLevelSetup();
+  Serial.println("Exiting setup");
 
-    while(setupConfig.valueCount < MAX_DATA_POINTS) {
-      // force end of setup by filling empty slots
-      setupConfig.readings[setupConfig.valueCount++] = lastMedian;
+  while(setupConfig.valueCount < MAX_DATA_POINTS) {
+    // force end of setup by filling empty slots
+    setupConfig.readings[setupConfig.valueCount++] = lastMedian;
+  }
+
+  std::sort(std::begin(setupConfig.readings), std::end(setupConfig.readings));
+  // printData(setupConfig.readings, MAX_DATA_POINTS);
+  int endIndex = findEndCutoffIndex();
+  int startIndex = findStartCutoffIndex(endIndex);
+  // Serial.printf("Start Index = %d\n", startIndex);
+  // Serial.printf("End Index = %d\n", endIndex);
+
+  // calculate the percentages
+  int readingCount = endIndex - startIndex + 1;  // number of readings to use
+  int x = startIndex;                        // index of reading[]
+  float y1 = 0.00;                           // lower percentage of reading[] index (e.g. entry x equals 55%)
+  float y2 = 0.00;                           // upper percentage of reading[] index (e.g. entry x+1 equals 58%)
+  for (size_t Y = 0; Y <= 100; Y++) {         // % value (1-100%)
+    if (Y==0) {
+      levelConfig.readings[Y] = setupConfig.readings[x];
+      continue;
     }
-
-    std::sort(std::begin(setupConfig.readings), std::end(setupConfig.readings));
-    // printData(setupConfig.readings, MAX_DATA_POINTS);
-    int endIndex = findEndCutoffIndex();
-    int startIndex = findStartCutoffIndex(endIndex);
-    // Serial.printf("Start Index = %d\n", startIndex);
-    // Serial.printf("End Index = %d\n", endIndex);
-
-    // calculate the percentages
-    int readingCount = endIndex - startIndex + 1;  // number of readings to use
-    int x = startIndex;                        // index of reading[]
-    float y1 = 0.00;                           // lower percentage of reading[] index (e.g. entry x equals 55%)
-    float y2 = 0.00;                           // upper percentage of reading[] index (e.g. entry x+1 equals 58%)
-    for (size_t Y = 0; Y < 100; Y++) {         // % value (1-100%)
-      if (Y==0) {
-        levelConfig.readings[Y] = setupConfig.readings[x];
-        continue;
-      }
-      while (Y > y2 && x <= endIndex) {
-        // find the next dataset to calculate Z
-        y1 = (float)(x-startIndex  ) / readingCount * 100;     // lower percentage of this sensor reading
-        y2 = (float)(x-startIndex+1.0) / readingCount * 100;     // upper percentage of the next sensor reading
-        x++;
-      }
-      // float Z = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1])); // save the value into the configuration
-      levelConfig.readings[Y] = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1]));
-      // Serial.printf("\t\t\ty1=\t%f\t | y2=\t%f\n", y1, y2);
-      // Serial.printf("Y=%d\t| Z = %d | z1=\t%f\t| z2=\t%f\n", Y, (int)Z, setupConfig.readings[x-1], setupConfig.readings[x]);
+    while (Y > y2 && x <= endIndex) {
+      // find the next dataset to calculate Z
+      y1 = (float)(x-startIndex  ) / readingCount * 100;     // lower percentage of this sensor reading
+      y2 = (float)(x-startIndex+1.0) / readingCount * 100;     // upper percentage of the next sensor reading
+      x++;
     }
-    // printData(levelConfig.readings, 100);
-    levelConfig.setupDone = true;
-    
-    if (preferences.begin(NVS_NAMESPACE.c_str(), false)) {
-      preferences.clear();
-      preferences.putBool("setupDone", true);
-      for (uint8_t i = 0; i < 100; i++) {
-        preferences.putInt(String("val" + String(i)).c_str(), levelConfig.readings[i]);
-      }
-      preferences.end();
-    } else {
-      Serial.println("Unable to write data to NVS, giving up...");
-      return false;
-    }
+    // float Z = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1])); // save the value into the configuration
+    levelConfig.readings[Y] = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1]));
+    // Serial.printf("\t\t\ty1=\t%f\t | y2=\t%f\n", y1, y2);
+    // Serial.printf("Y=%d\t| Z = %d | z1=\t%f\t| z2=\t%f\n", Y, (int)Z, setupConfig.readings[x-1], setupConfig.readings[x]);
+  }
+  // printData(levelConfig.readings, 100);
+  levelConfig.setupDone = true;
+  
+  if (!writeToNVS()) return false;
 
-    // cleanup
-    resetSetupData();
-    return true;
+  // cleanup
+  resetSetupData();
+  return true;
 }
 
 int TANKLEVEL::runLevelSetup() {

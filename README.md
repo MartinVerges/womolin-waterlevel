@@ -51,7 +51,7 @@ To build this sensor yourself, you need:
  * 1x Pushbutton (~0.15€)
  * 1x Tube with 4mm inner width (~1€) 
  * 1x Small 12V to 3.3V power supply (~1€)
- * 1x Connector for the Tank itself, strongly depending on your indivudal situation
+ * 1x Connector for the Tank itself, strongly depending on your individual situation
  
  In addition you need some few small cables and soldering equipment to build the circuit.
 

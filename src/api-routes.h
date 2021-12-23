@@ -12,6 +12,12 @@
 #include <LittleFS.h>
 
 void APIRegisterRoutes() {
+  webServer.on("/api/wifi/disable", HTTP_POST, [](AsyncWebServerRequest *request) {
+    enableWifi = false;
+    if (request->contentType() == "application/json") { 
+      request->send(200, "application/json", "{\"message\":\"Shutting down WiFi\"}");
+    } else request->send(200, "text/plain", "Shutting down WiFi");
+  });
   webServer.on("/api/setup/start", HTTP_POST, [](AsyncWebServerRequest *request) {
     Tanklevel.setStartAsync();
     if (request->contentType() == "application/json") { 
