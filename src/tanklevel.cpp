@@ -12,9 +12,6 @@
 #include <Preferences.h>
 #include "tanklevel.h"
 
-HX711 hx711;
-Preferences preferences;
-
 TANKLEVEL::TANKLEVEL() {
 }
 

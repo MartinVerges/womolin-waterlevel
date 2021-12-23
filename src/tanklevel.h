@@ -12,6 +12,8 @@
 
 #define MAX_DATA_POINTS 255                        // how many level data points to store (increased accuracy)
 #include <Arduino.h>
+#include <Preferences.h>
+#include <HX711.h>
 
 class TANKLEVEL
 {
@@ -38,6 +40,9 @@ class TANKLEVEL
             int minValue = 0.00;                   // lowest value to start recording
             int readings[MAX_DATA_POINTS] = {0};   // data readings from pressure sensor while running level setup
         } setupConfig;
+
+        HX711 hx711;
+        Preferences preferences;
 
         // Search through the setupConfig sensor readings and find the lower limit cutoff index
         int findStartCutoffIndex(int endIndex);
