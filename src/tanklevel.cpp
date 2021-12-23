@@ -45,8 +45,6 @@ void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
 
   if (!preferences.begin(NVS.c_str(), false)) {
     Serial.println("Error opening NVS Namespace, giving up...");
-  } else if (levelConfig.setupDone) { // from RTC memory
-    Serial.println("LevelData already loaded");
   } else {
     levelConfig.setupDone = preferences.getBool("setupDone", false);
     if (levelConfig.setupDone) {
