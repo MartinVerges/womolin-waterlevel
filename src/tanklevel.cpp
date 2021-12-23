@@ -50,7 +50,7 @@ void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
     if (levelConfig.setupDone) {
       Serial.println("LevelData restored from Storage...");
       for (uint8_t i = 0; i <= 100; i++) {
-        levelConfig.readings[i] = (float)preferences.getInt(String("val" + String(i)).c_str(), 0);
+        levelConfig.readings[i] = preferences.getInt(String("val" + String(i)).c_str(), 0);
       }
     } else {
       Serial.println("No stored configuration found on NVS...");

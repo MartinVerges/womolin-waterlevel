@@ -12,12 +12,6 @@
 #include <LittleFS.h>
 
 void APIRegisterRoutes() {
-  webServer.on("/api/wifi/disable", HTTP_POST, [](AsyncWebServerRequest *request) {
-    enableWifi = false;
-    if (request->contentType() == "application/json") { 
-      request->send(200, "application/json", "{\"message\":\"Shutting down WiFi\"}");
-    } else request->send(200, "text/plain", "Shutting down WiFi");
-  });
   webServer.on("/api/setup/start", HTTP_POST, [](AsyncWebServerRequest *request) {
     Tanklevel.setStartAsync();
     if (request->contentType() == "application/json") { 
@@ -48,6 +42,7 @@ void APIRegisterRoutes() {
   webServer.onRequestBody([](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
     Serial.println("Running");
     if (request->url() == "/api/setup/values" && request->method() == HTTP_POST) {
+      // Do a simple linear tank level setup using lower+upper reading
       DynamicJsonDocument jsonBuffer(64);
       deserializeJson(jsonBuffer, (const char*)data);
 
@@ -55,10 +50,36 @@ void APIRegisterRoutes() {
         request->send(422, "text/plain", "Invalid data");
         return;
       }
-      if (Tanklevel.setupFrom2Values(jsonBuffer["lower"], jsonBuffer["upper"])) {
-        request->send(500, "text/plain", "Unable to process data");
+      if (!Tanklevel.setupFrom2Values(jsonBuffer["lower"], jsonBuffer["upper"])) {
+        request->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
       } else request->send(200, "application/json", "{\"message\":\"Setup completed\"}");
+
+    } else if (request->url() == "/api/config" && request->method() == HTTP_POST) {
+      // Configure the hostname of the sensor
+      DynamicJsonDocument jsonBuffer(256);
+      deserializeJson(jsonBuffer, (const char*)data);
+
+      String hostname = jsonBuffer["hostname"].as<String>();
+
+      if (!hostname || hostname.length() < 3 || hostname.length() > 32) {
+        // TODO: Add better checks according to RFC hostnames
+        request->send(422, "text/plain", "Invalid hostname");
+        return;
+      }
+      if (preferences.putString("hostName", hostname)) {
+        request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
+      } else request->send(200, "text/plain", "New hostname stored in NVS");
     }
+  });
+  webServer.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (request->contentType() == "application/json") {
+      String output;
+      StaticJsonDocument<256> doc;
+      doc["hostname"] = hostName;
+      doc["enablewifi"] = enableWifi;
+      serializeJson(doc, output);
+      request->send(200, "application/json", output);
+    } else request->send(415, "text/plain", "Unsupported Media Type");
   });
   webServer.on("/api/rawvalue", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {
@@ -87,7 +108,7 @@ void APIRegisterRoutes() {
   webServer.on("/api/esp/freq", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
   });
-  webServer.on("/api/wifi-info", HTTP_GET, [](AsyncWebServerRequest *request) {
+  webServer.on("/api/wifi/info", HTTP_GET, [](AsyncWebServerRequest *request) {
       AsyncResponseStream *response = request->beginResponseStream("application/json");
       DynamicJsonDocument json(1024);
       json["status"] = "ok";
@@ -95,6 +116,20 @@ void APIRegisterRoutes() {
       json["ip"] = WiFi.localIP().toString();
       serializeJson(json, *response);
       request->send(response);
+  });
+  webServer.on("/api/wifi/disable", HTTP_POST, [](AsyncWebServerRequest *request) {
+    enableWifi = false;
+    preferences.putBool("enableWifi", false);
+    if (request->contentType() == "application/json") { 
+      request->send(200, "application/json", "{\"message\":\"Shutting down WiFi\"}");
+    } else request->send(200, "text/plain", "Shutting down WiFi");
+  });
+  webServer.on("/api/wifi/enable", HTTP_POST, [](AsyncWebServerRequest *request) {
+    enableWifi = true;
+    preferences.putBool("enableWifi", true);
+    if (request->contentType() == "application/json") { 
+      request->send(200, "application/json", "{\"message\":\"Permanently enabling WiFi\"}");
+    } else request->send(200, "text/plain", "Permanently enabling WiFi");
   });
   webServer.on("/api/level-info", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");

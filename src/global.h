@@ -5,6 +5,7 @@
 #include <ESPAsyncWebServer.h>
 #include <esp_bt.h>
 #include <ESPmDNS.h>
+#include <Preferences.h>
 #include <soc/rtc.h>
 extern "C" {
   #include <esp_clk.h>
@@ -33,9 +34,9 @@ RTC_DATA_ATTR struct timing_t {
   const unsigned int setupInterval = 250;   // Interval in ms to execute code
 } Timing;
 
-RTC_DATA_ATTR bool enableWifi = false;                // Enable Wifi, disable to reduce power consumtion
-RTC_DATA_ATTR bool startWifiConfigPortal = false;     // Start the config portal on setup()
+bool enableWifi = false;                    // Enable Wifi, disable to reduce power consumtion, stored on NVS
 
+RTC_DATA_ATTR bool startWifiConfigPortal = false;     // Start the config portal on setup()
 RTC_DATA_ATTR uint64_t sleepTime;                     // Time the esp32 slept
 
 TANKLEVEL Tanklevel;
@@ -46,11 +47,12 @@ struct Button {
 };
 RTC_DATA_ATTR Button button1 = {GPIO_NUM_4, false};   // Run the setup (use a RTC GPIO)
 
-RTC_DATA_ATTR String hostName = "tanksensor-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+String hostName;
 DNSServer dnsServer;
 DoubleResetDetector* drd;
 AsyncWebServer webServer(webserverPort);
 AsyncEventSource events("/events");
+Preferences preferences;
 
 
 void MDNSRegister() {

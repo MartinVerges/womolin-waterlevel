@@ -69,6 +69,7 @@ void sleepOrDelay() {
     rtc_gpio_pullup_en(button1.PIN);
     rtc_gpio_pulldown_dis(button1.PIN);
     esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
+    preferences.end();
     Serial.println("[POWER] Sleeping...");
     esp_deep_sleep_start();
   }
@@ -85,6 +86,7 @@ void dacValue(uint8_t percentage) {
     uint8_t val = round(start + (end-start) / 100 * percentage);
     dacWrite(GPIO_DAC_LEVEL_OUT, val);            // ESP32 values 255= 3.3V 128= 1.65V
     Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", val, (float)DAC_VCC/255*val);
+
   } else {
     dacWrite(GPIO_DAC_LEVEL_OUT, 0);
     Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", 0, 0.00);
@@ -92,10 +94,6 @@ void dacValue(uint8_t percentage) {
 }
 
 void setup() {
-  delay(250); // avoid some hanging or stuck bugs xD
-
-//  rtc_gpio_pullup_dis(button1.PIN);
-//  rtc_gpio_hold_dis(button1.PIN);
   Serial.begin(115200);
   Serial.println("\n\n==== starting ESP32 setup() ====");
 
@@ -113,15 +111,22 @@ void setup() {
   
   if (!LITTLEFS.begin(true)) {
     Serial.println("[FS] An Error has occurred while mounting LITTLEFS");
-    ESP.restart();
+    // reduce power consumption while having issues with NVS
+    esp_sleep_enable_timer_wakeup(1 * uS_TO_S_FACTOR);
+    esp_deep_sleep_start();
+    // delay(1000); ESP.restart();
   }
-  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, NVS_NAMESPACE);
+  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, NVS_NAMESPACE+"sensor");
+  preferences.begin(NVS_NAMESPACE.c_str());
+  enableWifi = preferences.getBool("enableWifi", false);
+  hostName = preferences.getString("hostName", "tanksensor-" + String((uint32_t)ESP.getEfuseMac(), HEX));
+
   if (!Tanklevel.isConfigured()) {
     // we need to bring up WiFi to provide a convenient setup routine
     enableWifi = true;
   }
   
-  if (!enableWifi) {
+  if (!enableWifi && !startWifiConfigPortal) {
     Serial.println("[WIFI] Not starting WiFi!");
   } else {
     WiFiRegisterEvents(WiFi);
@@ -168,6 +173,7 @@ void loop() {
       WiFi.disconnect();
       webServer.end();
     }
+    preferences.end();
     enableWifi = true;
     ESP.restart();
   }
