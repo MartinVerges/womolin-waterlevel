@@ -19,7 +19,7 @@ TANKLEVEL::~TANKLEVEL() {
 }
 
 bool TANKLEVEL::writeToNVS() {
-  if (preferences.begin(NVS_NAMESPACE.c_str(), false)) {
+  if (preferences.begin(NVS.c_str(), false)) {
     preferences.clear();
     preferences.putBool("setupDone", true);
     for (uint8_t i = 0; i <= 100; i++) {
@@ -41,9 +41,9 @@ int TANKLEVEL::getLevelData(int perc) {
 
 void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
   hx711.begin(dout, pd_sck, 32);
-  NVS_NAMESPACE = nvs;
+  NVS = nvs;
 
-  if (!preferences.begin(NVS_NAMESPACE.c_str(), false)) {
+  if (!preferences.begin(NVS.c_str(), false)) {
     Serial.println("Error opening NVS Namespace, giving up...");
   } else if (levelConfig.setupDone) { // from RTC memory
     Serial.println("LevelData already loaded");

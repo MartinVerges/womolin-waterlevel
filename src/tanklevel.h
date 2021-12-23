@@ -22,7 +22,7 @@ class TANKLEVEL
         float LOWER_END = 0.020;                   // value increase to start recording (tank is empty)
         float UPPER_END = 0.980;                   // value limit to cutoff data (tank is full)
 
-        String NVS_NAMESPACE = "tanksensor";       // NVS Storage to write and read values
+        String NVS = "tanksensor";                 // NVS Storage to write and read values
 
         struct config_t {
             bool setupDone = false;                // Configuration done or not yet initialized sensor
