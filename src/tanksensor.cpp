@@ -33,6 +33,7 @@
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
   wakeup_reason = esp_sleep_get_wakeup_cause();
+
   switch(wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0 : 
       Serial.println("[POWER] Wakeup caused by external signal using RTC_IO");
@@ -116,7 +117,7 @@ void setup() {
     esp_deep_sleep_start();
     // delay(1000); ESP.restart();
   }
-  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, NVS_NAMESPACE+"sensor");
+  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, NVS_NAMESPACE+"s1");
   preferences.begin(NVS_NAMESPACE.c_str());
   enableWifi = preferences.getBool("enableWifi", false);
   hostName = preferences.getString("hostName", "tanksensor-" + String((uint32_t)ESP.getEfuseMac(), HEX));
@@ -168,14 +169,19 @@ void loop() {
   if (button1.pressed) {
     Serial.println("Button pressed!");
     button1.pressed = false;
-    startWifiConfigPortal = true;
-    if (enableWifi) {
+    if (!enableWifi) {
+      // if no wifi is currently running, first button press will start it up
+      preferences.putBool("enableWifi", true);
+    } else {
+      // if wifi is enabled, we start the config portal on next reboot
       WiFi.disconnect();
       webServer.end();
+      startWifiConfigPortal = true;
     }
     preferences.end();
-    enableWifi = true;
-    ESP.restart();
+    // ESP.restart(); // causes RTC_DATA_ATTR data reset!
+    esp_sleep_enable_timer_wakeup(1);
+    esp_deep_sleep_start();
   }
   
   if (Tanklevel.isSetupRunning()) {

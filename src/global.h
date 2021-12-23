@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "tanklevel.h"
 #include <DNSServer.h>
-#include <ESP_DoubleResetDetector.h>
 #include <ESPAsyncWebServer.h>
 #include <esp_bt.h>
 #include <ESPmDNS.h>
@@ -36,8 +35,8 @@ RTC_DATA_ATTR struct timing_t {
 
 bool enableWifi = false;                    // Enable Wifi, disable to reduce power consumtion, stored on NVS
 
-RTC_DATA_ATTR bool startWifiConfigPortal = false;     // Start the config portal on setup()
-RTC_DATA_ATTR uint64_t sleepTime;                     // Time the esp32 slept
+RTC_DATA_ATTR bool startWifiConfigPortal = false; // Start the config portal on setup() (default set by wakeup funct.)
+RTC_DATA_ATTR uint64_t sleepTime = 0;             // Time that the esp32 slept
 
 TANKLEVEL Tanklevel;
 
@@ -45,11 +44,10 @@ struct Button {
   const gpio_num_t PIN;
   bool pressed;
 };
-RTC_DATA_ATTR Button button1 = {GPIO_NUM_4, false};   // Run the setup (use a RTC GPIO)
+Button button1 = {GPIO_NUM_4, false};       // Run the setup (use a RTC GPIO)
 
 String hostName;
 DNSServer dnsServer;
-DoubleResetDetector* drd;
 AsyncWebServer webServer(webserverPort);
 AsyncEventSource events("/events");
 Preferences preferences;

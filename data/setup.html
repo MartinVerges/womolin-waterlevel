@@ -61,8 +61,8 @@
               </div>
               <div class="col-12">
                 <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" role="switch" id="enableWifi">
-                  <label class="form-check-label" for="enableWifi">Leave WiFi on (increased power consumption)</label>
+                  <input class="form-check-input" type="checkbox" role="switch" id="enablewifi">
+                  <label class="form-check-label" for="enablewifi">Leave WiFi on (increased power consumption)</label>
                 </div>
               </div>
               <button type="button" class="btn btn-primary btn-lg px-5 me-3" id="btn-finish">Save</button>
@@ -80,7 +80,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body" id="messageModalContent">
-            TEST
+            unknown
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -104,19 +104,19 @@
           type : 'POST',
           data : JSON.stringify({ 
             hostname: String($("#hostname").val()),
-            enableWifi: Boolean($("#enablwifi").prop('checked'))
+            enablewifi: Boolean($("#enablewifi").prop('checked'))
           }),
           dataType : "json",
           contentType : 'application/json',
           success : function(data, status, jqXHR) { // success callback
             $("#message #messageModalLabel").html("Success");
             $("#message #messageModalContent").html("Configuration stored in NVS, please restart the Sensor!");
-            $("#message").show();
+            (new bootstrap.Modal($('#message'))).show()
           },
           fail : function() {
             $("#message #messageModalLabel").html("Error");
             $("#message #messageModalContent").html("Failed to write data to NVS");
-            $("#message").show()
+            (new bootstrap.Modal($('#message'))).show()
           }
         });
       });
@@ -129,7 +129,7 @@
           success : function(data, status, jqXHR) { // success callback
             for (const [key, value] of Object.entries(data)) {
               var ele = $("#"+key);
-              if (ele.is("input[type=checkbox")) {
+              if (ele.is("input[type=checkbox]")) {
                 ele.prop('checked', Boolean(value));
               } else {
                 ele.val(value);
@@ -139,7 +139,7 @@
           fail : function() {
             $("#message #messageModalLabel").html("Error");
             $("#message #messageModalContent").html("Failed to get data from NVS");
-            $("#message").show()
+            (new bootstrap.Modal($('#message'))).show()
           }
         });
     </script>

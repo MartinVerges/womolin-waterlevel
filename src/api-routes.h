@@ -40,7 +40,6 @@ void APIRegisterRoutes() {
     } else request->send(200, "text/plain", "Abort requested");
   });
   webServer.onRequestBody([](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
-    Serial.println("Running");
     if (request->url() == "/api/setup/values" && request->method() == HTTP_POST) {
       // Do a simple linear tank level setup using lower+upper reading
       DynamicJsonDocument jsonBuffer(64);
@@ -60,13 +59,21 @@ void APIRegisterRoutes() {
       deserializeJson(jsonBuffer, (const char*)data);
 
       String hostname = jsonBuffer["hostname"].as<String>();
+      bool enablewifi = jsonBuffer["enablewifi"].as<boolean>();
 
       if (!hostname || hostname.length() < 3 || hostname.length() > 32) {
         // TODO: Add better checks according to RFC hostnames
         request->send(422, "text/plain", "Invalid hostname");
         return;
       }
-      if (preferences.putString("hostName", hostname)) {
+
+      int s = 0;
+      if (preferences.putString("hostName", hostname)) s++;
+      if (preferences.putBool("enableWifi", enablewifi)) {
+        enableWifi = enablewifi;
+        s++;
+      }
+      if (s == 2) {
         request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
       } else request->send(200, "text/plain", "New hostname stored in NVS");
     }
