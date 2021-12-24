@@ -9,6 +9,9 @@
 extern "C" {
   #include <esp_clk.h>
 }
+#include <FS.h>
+#define SPIFFS LITTLEFS 
+#include <LITTLEFS.h> 
 
 const int GPIO_HX711_DOUT = 33;             // GPIO pin to use for DT or DOUT
 const int GPIO_HX711_SCK = 32;              // GPIO pin to use for SCK

@@ -20,7 +20,6 @@
 #include <esp_sleep.h>
 #include <esp_wifi.h>
 #include <ESPAsync_WiFiManager.h>
-#include <LittleFS.h>
 #include <Preferences.h>
 #include <driver/rtc_io.h>
 #include <WiFi.h>
@@ -29,6 +28,7 @@
 #include "global.h"
 #include "wifi-events.h"
 #include "api-routes.h"
+
 
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
