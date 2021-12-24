@@ -19,8 +19,17 @@ jobs:
     - name: Building a firmware for ESP32
       run: |
         pio run
+        pio run -t buildfs
 # produces ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+# produces ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
 
+    - name: 'Upload Artifact'
+      uses: actions/upload-artifact@v2
+      with:
+        path: |
+          ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+          ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
+          
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -29,6 +38,7 @@ jobs:
       with:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
+        file: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin;${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
         body: |
           Firmware release
         draft: false

@@ -17,10 +17,13 @@ jobs:
     - name: Building a firmware for ESP32
       run: |
         pio run
+        pio run -t buildfs
 # produces ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+# produces ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
 
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@v2
       with:
-        name: firmware.bin
-        path: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+        path: |
+          ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+          ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
