@@ -3,7 +3,7 @@
 DIY project to build a smart fuel sensor for RVs or in other projects.
 It is based on air pressure and is able to measure fresh water as well as grey and black water levels with high precision.
 
-This project is still in development, it's a rough prototype and I'm happy about pull requests to add more functionality, improve existing ones or just feedback.
+This project is still in development, it's a working sensor and I'm happy about pull requests to add more functionality, improve existing ones or just feedback.
 
 ## Why?
 
