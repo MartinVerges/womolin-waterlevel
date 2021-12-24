@@ -2,7 +2,8 @@
 
 [![GitHub Super-Linter](https://github.com/MartinVerges/rv-smart-tanksensor/workflows/Lint%20Code%20Base/badge.svg)](https://github.com/marketplace/actions/super-linter)
 
-DIY project to build a smart fuel sensor for RVs or in other projects. It is based on air pressure and is able to measure fresh water as well as grey and black water levels with high precision.
+DIY project to build a smart fuel sensor for RVs or in other projects.
+It is based on air pressure and is able to measure fresh water as well as grey and black water levels with high precision.
 
 This project is still in development, it's a rough prototype and I'm happy about pull requests to add more functionality, improve existing ones or just feedback.
 
@@ -71,6 +72,49 @@ To build this sensor yourself, you need:
     > platformio run --target upload
 ```
 
+## Operation
+
+When the sensor is started for the first time, a WiFi configuration portal opens via which a connection to the central access point can be established.
+As soon as the connection has been established, the sensor is available on the IP assigned by the DHCP and the hostname [tanksensor.local](http://tanksensor.local) provided by MDNS.
+You can now log in to the webobverface and proceed with the sensor setup. 
+To obtain a tank level, it is necessary to measure the tank. This can be done in 2 different ways:
+
+1) Uniformly shaped tanks whose water level rises evenly.
+2) Irregular shaped tanks that contain bulges, tapers or other complex shapes.
+
+### Uniform
+
+Install the Sensor in an empty Tank, navigate to the [setup](http://tanksensor.local/setup-uniform.html).
+Press the button to determine the lower value of the tank. The value then appears in the input field. 
+
+### Irregular
+
+Install the Sensor in an empty Tank, navigate to the [setup](http://tanksensor.local/setup-irregular.html).
+Prepare everything to achieve a constant inflow into the tank.
+The best way to do this is to use water connections to city networks with a larger cross-section.
+Refueling through this water connection should be done within about 3 minutes.
+
+Once you have prepared everything, start the setup and now turn on the water tap.
+The sensor now determines the increase in water level and calculates the percentage distribution in the tank at the end of the process.
+Once the tank is completely filled, turn off the water supply and wait about 5 seconds before completing the setup via the web interface so that the pressure can normalize.
+
+## Power saving mode
+
+This sensor is equipped with various techniques to save power. Unfortunately, the operation of WiFi causes relatively high power consumption (80~90mA idle, up to 250mA during transmission). This is not a problem in RVs with larger batteries or solar panels, but may be too high in small installations. Therefore, the WiFi module can be easily and conveniently switched off via the web interface, putting the sensor into a deep sleep mode. Here, the consumption drops to about 10μA. At regular intervals, the sensor switches on briefly, checks the tank level and updates the analog output of the sensor.
+
+Since the WiFi portal is not available in this mode, you can reactivate the WiFi by pressing the button on the device.
+
+## Wifi connection failed or unable to interact
+
+The button on the device switches from Powersave to Wifi Mode.
+When the button is pressed again, the sensor restarts and opens its own access point.
+Here you can correct the WLAN data.
+
+## API to the Sensor
+
+All provided RESTful APIs have been documented using the free [Insomnia software](https://insomnia.rest/).
+You can import the collection file called [Insomnia_api_spec.json](/Insomnia_api_spec.json?raw=true) and find all available API endpoints and run and test them directly.
+
 ## Alternatives
 
 ### Pressure based (like this project)
@@ -79,7 +123,8 @@ The only know alternative SuperSense tank sensor is available at around 259€ f
 
 ### Resistance based
 
-There are a lot of cheapest probes which all show only rough and mostly wrong data. These are mostly based on measuring the resistance or continuity between two or more conductive rods that come into contact with water.
+There are a lot of cheapest probes which all show only rough and mostly wrong data.
+These are mostly based on measuring the resistance or continuity between two or more conductive rods that come into contact with water.
 
 These probes usually cost more than the components in this project, but are extremely inaccurate, prone to calcification and malfunction.
 

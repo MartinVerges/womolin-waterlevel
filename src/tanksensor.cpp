@@ -70,6 +70,7 @@ void sleepOrDelay() {
     rtc_gpio_pullup_en(button1.PIN);
     rtc_gpio_pulldown_dis(button1.PIN);
     esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
+
     preferences.end();
     Serial.println("[POWER] Sleeping...");
     esp_deep_sleep_start();
@@ -80,18 +81,21 @@ void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
 }
 
-void dacValue(uint8_t percentage) {
+uint8_t dacValue(uint8_t percentage) {
+  uint8_t val = 0;
   if (percentage >= 0 && percentage <= 100) {
     float start = DAC_MIN_MVOLT / DAC_VCC * 255;   // startvolt / maxvolt * datapoints
     float end = DAC_MAX_MVOLT / DAC_VCC * 255;     // endvolt / maxvolt * datapoints
-    uint8_t val = round(start + (end-start) / 100 * percentage);
-    dacWrite(GPIO_DAC_LEVEL_OUT, val);            // ESP32 values 255= 3.3V 128= 1.65V
+    val = round(start + (end-start) / 100.0 * percentage);
+    dac_output_enable(DAC_CHANNEL_1);
+    dac_output_voltage(DAC_CHANNEL_1, val);
     Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", val, (float)DAC_VCC/255*val);
-
   } else {
-    dacWrite(GPIO_DAC_LEVEL_OUT, 0);
+    dac_output_enable(DAC_CHANNEL_1);
+    dac_output_voltage(DAC_CHANNEL_1, 0);
     Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", 0, 0.00);
   }
+  return val;
 }
 
 void setup() {
@@ -106,10 +110,6 @@ void setup() {
   attachInterrupt(button1.PIN, ISR_button1, FALLING);
   Serial.println("done");
   
-  Serial.printf("[GPIO] Configuration of GPIO %d as OUTPUT ... ", GPIO_DAC_LEVEL_OUT);
-  pinMode(GPIO_DAC_LEVEL_OUT, ANALOG);
-  Serial.println("done");
-  
   if (!LITTLEFS.begin(true)) {
     Serial.println("[FS] An Error has occurred while mounting LITTLEFS");
     // reduce power consumption while having issues with NVS
@@ -120,7 +120,7 @@ void setup() {
   Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, NVS_NAMESPACE+"s1");
   preferences.begin(NVS_NAMESPACE.c_str());
   enableWifi = preferences.getBool("enableWifi", false);
-  hostName = preferences.getString("hostName", "tanksensor-" + String((uint32_t)ESP.getEfuseMac(), HEX));
+  hostName = preferences.getString("hostName", "tanksensor");
 
   if (!Tanklevel.isConfigured()) {
     // we need to bring up WiFi to provide a convenient setup routine
@@ -142,7 +142,9 @@ void setup() {
     }
     if (startWifiConfigPortal) {
       Serial.println("[WIFI] Starting configuration portal");
-      ESPAsync_wifiManager.startConfigPortal();
+      String apName = "ESP_";
+      apName += String((uint32_t)ESP.getEfuseMac(), HEX);
+      ESPAsync_wifiManager.startConfigPortal(apName.c_str(), NULL);
       startWifiConfigPortal = false;
     } else {
       ESPAsync_wifiManager.autoConnect();
@@ -204,9 +206,10 @@ void loop() {
       if (Tanklevel.isConfigured()) {
         val = Tanklevel.getPercentage();
         events.send(String(val).c_str(), "level", runtime());
-        dacValue(val); 
+        dacValue(val);
         Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getMedian(true));
       } else {
+        dacValue(0);
         val = Tanklevel.getMedian();
         Serial.printf("[SENSOR] Tanklevel not configured, please run the setup! Raw sensor value = %d\n", val);
       }

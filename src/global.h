@@ -10,7 +10,6 @@ extern "C" {
   #include <esp_clk.h>
 }
 
-const int GPIO_DAC_LEVEL_OUT = 25;          // Provide current level using a 1-3V level
 const int GPIO_HX711_DOUT = 33;             // GPIO pin to use for DT or DOUT
 const int GPIO_HX711_SCK = 32;              // GPIO pin to use for SCK
 const int webserverPort = 80;               // Start the Webserver on this port
