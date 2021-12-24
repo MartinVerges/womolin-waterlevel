@@ -9,7 +9,7 @@
 
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
-#include <LittleFS.h>
+#include <LITTLEFS.h>
 
 void APIRegisterRoutes() {
   webServer.on("/api/setup/start", HTTP_POST, [](AsyncWebServerRequest *request) {
