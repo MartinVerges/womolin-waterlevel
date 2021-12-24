@@ -1,7 +1,5 @@
 # rv-smart-tanksensor
 
-[![GitHub Super-Linter](https://github.com/MartinVerges/rv-smart-tanksensor/workflows/Lint%20Code%20Base/badge.svg)](https://github.com/marketplace/actions/super-linter)
-
 DIY project to build a smart fuel sensor for RVs or in other projects.
 It is based on air pressure and is able to measure fresh water as well as grey and black water levels with high precision.
 
