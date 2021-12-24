@@ -1,6 +1,9 @@
-from sys import platform
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import os
 import stat
+from sys import platform
 
 Import("env")
 
