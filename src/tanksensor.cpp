@@ -154,6 +154,7 @@ void setup() {
     webServer.begin();
     Serial.println("[WEB] HTTP server started");
 
+    WiFi.setAutoReconnect(true);
     MDNSRegister();
   } // end wifi
 }
