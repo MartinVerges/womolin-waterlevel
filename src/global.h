@@ -17,7 +17,7 @@ const int GPIO_HX711_DOUT = 33;             // GPIO pin to use for DT or DOUT
 const int GPIO_HX711_SCK = 32;              // GPIO pin to use for SCK
 const int webserverPort = 80;               // Start the Webserver on this port
 const String NVS_NAMESPACE = "tanksensor";  // Preferences.h namespace to store settings
-const float DAC_MIN_MVOLT = 1000.0;         // DAC output minimum value (1V on 0% tank level)
+const float DAC_MIN_MVOLT = 500.0;          // DAC output minimum value (0.5V on 0% tank level)
 const float DAC_MAX_MVOLT = 3000.0;         // DAC output maximum value (3V on 100% tank level)
 const float DAC_VCC = 3300.0;               // DAC output maximum voltage from microcontroller 3.3V = 3300mV
 
