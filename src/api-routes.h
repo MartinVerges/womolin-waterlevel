@@ -156,8 +156,12 @@ void APIRegisterRoutes() {
   webServer.addHandler(&events);
 
   webServer.onNotFound([](AsyncWebServerRequest *request) {
-    if (request->contentType() == "application/json") {
-      request->send(404, "application/json", "{\"message\":\"Not found\"}");
-    } else request->send(404, "text/plain", "Not found");
+    if (request->method() == HTTP_OPTIONS) {
+      request->send(200);
+    } else {
+      if (request->contentType() == "application/json") {
+        request->send(404, "application/json", "{\"message\":\"Not found\"}");
+      } else request->send(404, "text/plain", "Not found");
+    }
   });
 }
