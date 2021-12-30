@@ -98,9 +98,15 @@ Once the tank is completely filled, turn off the water supply and wait about 5 s
 
 ## Power saving mode
 
-This sensor is equipped with various techniques to save power. Unfortunately, the operation of WiFi causes relatively high power consumption (80~90mA idle, up to 250mA during transmission). This is not a problem in RVs with larger batteries or solar panels, but may be too high in small installations. Therefore, the WiFi module can be easily and conveniently switched off via the web interface, putting the sensor into a deep sleep mode. Here, the consumption drops to about 10μA. At regular intervals, the sensor switches on briefly, checks the tank level and updates the analog output of the sensor.
+This sensor is equipped with various techniques to save power.
+Unfortunately, the operation of WiFi causes relatively high power consumption (__45~55mA idle__, up to 250mA during transmission).
+This is not a problem in RVs with larger batteries or solar panels, but may be too high in small installations.
+Therefore, the WiFi module can be easily and conveniently switched off via the web interface, putting the sensor into a deep sleep mode.
+Here, the consumption of the esp32 officially drops to about 10μA.
+Including the used step down power supply it will still consume __12.2mA in this sleep mode__ with RTC ADC enabled, so around 1/4 of full featured wifi enabled consumtion.
+At regular intervals, the sensor switches on briefly, checks the tank level and updates the analog output of the sensor.
 
-Since the WiFi portal is not available in this mode, you can reactivate the WiFi by pressing the button on the device.
+Since the WiFi portal is not available in this mode, you can reactivate the WiFi by pressing the button on the device once.
 
 ## Wifi connection failed or unable to interact
 
