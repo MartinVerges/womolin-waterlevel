@@ -45,7 +45,8 @@
     "typeinfo": "cpp",
     "iterator": "cpp",
     "string": "cpp",
-    "random": "cpp"
+    "random": "cpp",
+    "list": "cpp"
   },
   "clang-format.executable": "C:\\Users\\marti\\.vscode\\extensions\\xaver.clang-format-1.9.0\\clang-format-6923b0a7.exe"
 }

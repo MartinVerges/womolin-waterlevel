@@ -15,7 +15,6 @@
 #include <Arduino.h>
 #include <AsyncElegantOTA.h>
 #include <AsyncTCP.h>
-#include <driver/adc.h>
 #include <driver/dac.h>
 #include <esp_sleep.h>
 #include <esp_wifi.h>
@@ -23,12 +22,13 @@
 #include <Preferences.h>
 #include <driver/rtc_io.h>
 #include <WiFi.h>
-#include <WiFiClient.h>
+
+#include <NimBLEDevice.h>
+#include <NimBLEBeacon.h>
 
 #include "global.h"
 #include "wifi-events.h"
 #include "api-routes.h"
-
 
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
@@ -36,33 +36,35 @@ void print_wakeup_reason() {
 
   switch(wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0 : 
-      Serial.println("[POWER] Wakeup caused by external signal using RTC_IO");
+      Serial.println(F("[POWER] Wakeup caused by external signal using RTC_IO"));
       button1.pressed = true;
     break;
-    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("[POWER] Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println(F("[POWER] Wakeup caused by external signal using RTC_CNTL")); break;
     case ESP_SLEEP_WAKEUP_TIMER : 
-      Serial.println("[POWER] Wakeup caused by timer");
+      Serial.println(F("[POWER] Wakeup caused by timer"));
       uint64_t timeNow, timeDiff;
       timeNow = rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get());
       timeDiff = timeNow - sleepTime;
       printf("Now: %" PRIu64 "ms, Duration: %" PRIu64 "ms\n", timeNow / 1000, timeDiff / 1000);
       delay(2000);
     break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("[POWER] Wakeup caused by touchpad"); break;
-    case ESP_SLEEP_WAKEUP_ULP : Serial.println("[POWER] Wakeup caused by ULP program"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println(F("[POWER] Wakeup caused by touchpad")); break;
+    case ESP_SLEEP_WAKEUP_ULP : Serial.println(F("[POWER] Wakeup caused by ULP program")); break;
     default : Serial.printf("[POWER] Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
   }
 }
 
 uint64_t runtime() {
-  return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get());
+  return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get()) / 1000;
 }
 
 void sleepOrDelay() {
   if (enableWifi || Tanklevel.isSetupRunning()) {
     // We don't want to, or can't go to deepsleep
-    delay(25);
+    yield();
+    delay(50);
   } else {
+    delay(50); return;
     // We can save a lot of power by going into deepsleep
     // Thid disables WIFI and everything.
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
@@ -72,7 +74,7 @@ void sleepOrDelay() {
     esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
 
     preferences.end();
-    Serial.println("[POWER] Sleeping...");
+    Serial.println(F("[POWER] Sleeping..."));
     esp_deep_sleep_start();
   }
 }
@@ -100,7 +102,8 @@ uint8_t dacValue(uint8_t percentage) {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("\n\n==== starting ESP32 setup() ====");
+  Serial.setDebugOutput(true);
+  Serial.println(F("\n\n==== starting ESP32 setup() ===="));
 
   print_wakeup_reason();
   Serial.printf("[SETUP] Configure ESP32 to sleep for every %d Seconds\n", TIME_TO_SLEEP);
@@ -108,19 +111,25 @@ void setup() {
   Serial.printf("[GPIO] Configuration of GPIO %d as INPUT_PULLUP ... ", button1.PIN);
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, ISR_button1, FALLING);
-  Serial.println("done");
+  Serial.println(F("done"));
   
   if (!LITTLEFS.begin(true)) {
-    Serial.println("[FS] An Error has occurred while mounting LITTLEFS");
+    Serial.println(F("[FS] An Error has occurred while mounting LITTLEFS"));
     // reduce power consumption while having issues with NVS
-    esp_sleep_enable_timer_wakeup(1 * uS_TO_S_FACTOR);
+    esp_sleep_enable_timer_wakeup(5 * uS_TO_S_FACTOR);
     esp_deep_sleep_start();
     // delay(1000); ESP.restart();
   }
-  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, NVS_NAMESPACE+"s1");
-  preferences.begin(NVS_NAMESPACE.c_str());
+  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, String(NVS_NAMESPACE) + String("s1"));
+  if (!preferences.begin(NVS_NAMESPACE)) {
+    preferences.clear();
+  }
   enableWifi = preferences.getBool("enableWifi", false);
-  hostName = preferences.getString("hostName", "tanksensor");
+  hostName = preferences.getString("hostName");
+  if (hostName.isEmpty()) {
+    hostName = "tanksensor";
+    preferences.putString("hostName", hostName);
+  }
 
   if (!Tanklevel.isConfigured()) {
     // we need to bring up WiFi to provide a convenient setup routine
@@ -128,63 +137,79 @@ void setup() {
   }
   
   if (!enableWifi && !startWifiConfigPortal) {
-    Serial.println("[WIFI] Not starting WiFi!");
+    Serial.println(F("[WIFI] Not starting WiFi!"));
   } else {
     WiFiRegisterEvents(WiFi);
 
-    Serial.printf("[WIFI] Starting Async_AutoConnect_ESP32_minimal on %s\n", ARDUINO_BOARD);
-    Serial.printf("[WIFI] %s\n", ESP_ASYNC_WIFIMANAGER_VERSION);
+    Serial.print(F("[WIFI] Starting Async_AutoConnect_ESP32_minimal on "));
+    Serial.println(ARDUINO_BOARD);
+    Serial.print(F("[WIFI] "));
+    Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
 
-    ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, hostName.c_str());
-    if (!startWifiConfigPortal && ESPAsync_wifiManager.WiFi_SSID() == "") {
-      Serial.println("[WIFI] No AP credentials found, requesting Wifi configuration portal!");
+    ESPAsync_WiFiManager wifiManager(&webServer, &dnsServer, hostName.c_str());
+    if (!startWifiConfigPortal && wifiManager.WiFi_SSID() == "") {
+      Serial.println(F("[WIFI] No AP credentials found, requesting Wifi configuration portal!"));
       startWifiConfigPortal = true;
     }
     if (startWifiConfigPortal) {
-      Serial.println("[WIFI] Starting configuration portal");
       String apName = "ESP_";
       apName += String((uint32_t)ESP.getEfuseMac(), HEX);
-      ESPAsync_wifiManager.startConfigPortal(apName.c_str(), NULL);
+      apName.toUpperCase();
+      Serial.printf("[WIFI] Starting configuration portal on AP SSID %s\n", apName.c_str());
+      wifiManager.setConfigPortalTimeout(0);
+      wifiManager.startConfigPortal(apName.c_str(), NULL);
       startWifiConfigPortal = false;
     } else {
-      ESPAsync_wifiManager.autoConnect();
+      wifiManager.autoConnect();
     }
     APIRegisterRoutes();
-    AsyncElegantOTA.begin(&webServer);    // Start ElegantOTA
+    AsyncElegantOTA.begin(&webServer);
     webServer.begin();
-    Serial.println("[WEB] HTTP server started");
+    Serial.println(F("[WEB] HTTP server started"));
 
     WiFi.setAutoReconnect(true);
     MDNSRegister();
   } // end wifi
+
+  createBleServer();
+}
+
+// Soft reset the ESP to start with setup() again, but without loosing RTC_DATA as it would be with ESP.reset()
+void softReset() {
+  if (enableWifi) {
+    webServer.end();
+    MDNS.end();
+    WiFi.disconnect();
+  }
+  esp_sleep_enable_timer_wakeup(1);
+  esp_deep_sleep_start();
 }
 
 void loop() {
   // if WiFi is down, try reconnecting
   if (enableWifi && runtime() - Timing.lastWifiCheck > Timing.wifiInterval) {
     Timing.lastWifiCheck = runtime();
+    if (WiFi.getMode() == WIFI_MODE_AP) {
+      Serial.println(F("[WIFI] Something went wrong here, we have an AP but no config portal!"));
+      softReset();
+    }
     if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("[WIFI] Reconnecting to WiFi...");
+      Serial.printf("[WIFI][%" PRIu64 "ms] Reconnecting to WiFi...\n", runtime());
       WiFi.reconnect();
     }
   }
-
   if (button1.pressed) {
-    Serial.println("Button pressed!");
+    Serial.println(F("Button pressed!"));
     button1.pressed = false;
     if (!enableWifi) {
       // if no wifi is currently running, first button press will start it up
       preferences.putBool("enableWifi", true);
     } else {
       // if wifi is enabled, we start the config portal on next reboot
-      WiFi.disconnect();
-      webServer.end();
       startWifiConfigPortal = true;
     }
     preferences.end();
-    // ESP.restart(); // causes RTC_DATA_ATTR data reset!
-    esp_sleep_enable_timer_wakeup(1);
-    esp_deep_sleep_start();
+    softReset();
   }
   
   if (Tanklevel.isSetupRunning()) {
@@ -196,7 +221,7 @@ void loop() {
         events.send(String(val).c_str(), "setup", runtime());
       } else {
         events.send("Unable to read data from sensor!", "setuperror", runtime());
-        Serial.println("[SENSOR] Unable to read data from sensor!");
+        Serial.println(F("[SENSOR] Unable to read data from sensor!"));
       }
     }
   } else {
@@ -208,6 +233,7 @@ void loop() {
         val = Tanklevel.getPercentage();
         events.send(String(val).c_str(), "level", runtime());
         dacValue(val);
+        updateBleCharacteristic(val);
         Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getMedian(true));
       } else {
         dacValue(0);

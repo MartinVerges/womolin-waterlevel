@@ -2,24 +2,28 @@
 #include "tanklevel.h"
 #include <DNSServer.h>
 #include <ESPAsyncWebServer.h>
-#include <esp_bt.h>
 #include <ESPmDNS.h>
+#include <esp_bt_device.h>
+#include <FS.h>
+#include <NimBLEDevice.h>
+#include <NimBLEBeacon.h>
 #include <Preferences.h>
 #include <soc/rtc.h>
 extern "C" {
   #include <esp_clk.h>
 }
-#include <FS.h>
 #define SPIFFS LITTLEFS 
-#include <LITTLEFS.h> 
+#include <LITTLEFS.h>
 
-const int GPIO_HX711_DOUT = 33;             // GPIO pin to use for DT or DOUT
-const int GPIO_HX711_SCK = 32;              // GPIO pin to use for SCK
-const int webserverPort = 80;               // Start the Webserver on this port
-const String NVS_NAMESPACE = "tanksensor";  // Preferences.h namespace to store settings
-const float DAC_MIN_MVOLT = 500.0;          // DAC output minimum value (0.5V on 0% tank level)
-const float DAC_MAX_MVOLT = 3000.0;         // DAC output maximum value (3V on 100% tank level)
-const float DAC_VCC = 3300.0;               // DAC output maximum voltage from microcontroller 3.3V = 3300mV
+#define GPIO_HX711_DOUT 33                  // GPIO pin to use for DT or DOUT
+#define GPIO_HX711_SCK 32                   // GPIO pin to use for SCK
+#define webserverPort 80                    // Start the Webserver on this port
+#define DAC_MIN_MVOLT 500.0                 // DAC output minimum value (0.5V on 0% tank level)
+#define DAC_MAX_MVOLT 3000.0                // DAC output maximum value (3V on 100% tank level)
+#define DAC_VCC 3300.0                      // DAC output maximum voltage from esp32 3.3V = 3300mV
+#define NVS_NAMESPACE "tanksensor"          // Preferences.h namespace to store settings
+#define BLE_SERVICE_LEVEL "2AF9"            // Bluetooth LE service ID for tank level
+#define BLE_CHARACTERISTIC_LEVEL "181A"     // Bluetooth LE characteristic ID for tank level value
 
 RTC_DATA_ATTR struct timing_t {
   // Wifi interval in loop()
@@ -49,10 +53,13 @@ struct Button {
 Button button1 = {GPIO_NUM_4, false};       // Run the setup (use a RTC GPIO)
 
 String hostName;
+uint32_t blePin;
 DNSServer dnsServer;
 AsyncWebServer webServer(webserverPort);
 AsyncEventSource events("/events");
 Preferences preferences;
+
+static NimBLEServer* pServer;
 
 
 void MDNSRegister() {
@@ -60,4 +67,90 @@ void MDNSRegister() {
   Serial.println("[MDNS] Starting mDNS Service!");
   MDNS.begin(hostName.c_str());
   MDNS.addService("http", "tcp", 80);
+}
+
+String getMacFromBT(String spacer = "") {
+  String output = "";
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_BT);
+  for (int i = 0; i < 6; i++) {
+    char m[3];
+    sprintf(m, "%02X", mac[i]);
+    output += m;
+    if (i < 5) output += spacer;
+  }
+  return output;
+}
+
+void sendBleBeacon() {
+    NimBLEDevice::init(hostName.c_str());
+    NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
+    NimBLEBeacon oBeacon = NimBLEBeacon();
+    oBeacon.setManufacturerId(0xDEAD);
+    const String BtUuid = "BADC0DED-be41-49fc-b927-" + getMacFromBT();
+    Serial.println(BtUuid);
+    //oBeacon.setProximityUUID(BLEUUID(BtUuid.c_str()));
+    oBeacon.setProximityUUID(BLEUUID("0000b81d-0000-1000-8000-00805f9b34fb"));
+    oBeacon.setMajor(2000);
+    oBeacon.setMinor(1000);
+    NimBLEAdvertisementData oAdvertisementData = NimBLEAdvertisementData();
+    
+    oAdvertisementData.setFlags(0x04); // BR_EDR_NOT_SUPPORTED 0x04
+    
+    std::string strServiceData = "";
+    strServiceData += (char)26;     // Len
+    strServiceData += (char)0xFF;   // Type
+    strServiceData += oBeacon.getData(); 
+    oAdvertisementData.addData(strServiceData);
+    
+    pAdvertising->setAdvertisementData(oAdvertisementData);
+    pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND); // BLE_GAP_CONN_MODE_NON
+    
+    pAdvertising->start();
+}
+
+void createBleServer() {
+  Serial.println(F("[BLE] Initializing the Bluetooth low energy (BLE) stack"));
+  NimBLEDevice::init(hostName.c_str());
+  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_PUBLIC);
+  pServer = NimBLEDevice::createServer();
+
+  // BLE Environmental Service (haven't found a better one)
+  NimBLEService *pEnvService = pServer->createService(BLE_SERVICE_LEVEL);
+  NimBLECharacteristic *pCharacteristicLevel = pEnvService->createCharacteristic(BLE_CHARACTERISTIC_LEVEL, // Generic Level
+    NIMBLE_PROPERTY::READ |
+    NIMBLE_PROPERTY::BROADCAST |
+    NIMBLE_PROPERTY::NOTIFY |
+    NIMBLE_PROPERTY::INDICATE
+  );
+  NimBLE2904* p2904 = (NimBLE2904*)pCharacteristicLevel->createDescriptor("2904"); 
+  p2904->setFormat(NimBLE2904::FORMAT_UINT8);
+  p2904->setUnit(NimBLE2904::FORMAT_UINT8);
+
+  pEnvService->start();
+  pCharacteristicLevel->setValue(0);
+  
+  NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
+  Serial.print(F("[BLE] Begin Advertising of "));
+  Serial.println(pEnvService->getUUID().toString().c_str());
+  pAdvertising->addServiceUUID(pEnvService->getUUID());
+  pAdvertising->setScanResponse(true); // false will reduce power consumtion
+  pAdvertising->start();
+
+  Serial.println(F("[BLE] Advertising Started"));
+}
+
+void updateBleCharacteristic(int val) {
+  if (pServer->getConnectedCount()) {
+    NimBLEService* pSvc = pServer->getServiceByUUID(BLE_SERVICE_LEVEL);
+    if(pSvc) {
+        NimBLECharacteristic* pChr = pSvc->getCharacteristic(BLE_CHARACTERISTIC_LEVEL);
+        if(pChr) {
+            pChr->setValue(val);
+            pChr->notify(true);
+        }
+    }
+  }
 }
