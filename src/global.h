@@ -82,37 +82,10 @@ String getMacFromBT(String spacer = "") {
   return output;
 }
 
-void sendBleBeacon() {
-    NimBLEDevice::init(hostName.c_str());
-    NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
-    NimBLEBeacon oBeacon = NimBLEBeacon();
-    oBeacon.setManufacturerId(0xDEAD);
-    const String BtUuid = "BADC0DED-be41-49fc-b927-" + getMacFromBT();
-    Serial.println(BtUuid);
-    //oBeacon.setProximityUUID(BLEUUID(BtUuid.c_str()));
-    oBeacon.setProximityUUID(BLEUUID("0000b81d-0000-1000-8000-00805f9b34fb"));
-    oBeacon.setMajor(2000);
-    oBeacon.setMinor(1000);
-    NimBLEAdvertisementData oAdvertisementData = NimBLEAdvertisementData();
-    
-    oAdvertisementData.setFlags(0x04); // BR_EDR_NOT_SUPPORTED 0x04
-    
-    std::string strServiceData = "";
-    strServiceData += (char)26;     // Len
-    strServiceData += (char)0xFF;   // Type
-    strServiceData += oBeacon.getData(); 
-    oAdvertisementData.addData(strServiceData);
-    
-    pAdvertising->setAdvertisementData(oAdvertisementData);
-    pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND); // BLE_GAP_CONN_MODE_NON
-    
-    pAdvertising->start();
-}
-
 void createBleServer() {
   Serial.println(F("[BLE] Initializing the Bluetooth low energy (BLE) stack"));
   NimBLEDevice::init(hostName.c_str());
-  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+  NimBLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_ADV);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
   NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_PUBLIC);
   pServer = NimBLEDevice::createServer();
@@ -137,6 +110,7 @@ void createBleServer() {
   Serial.println(pEnvService->getUUID().toString().c_str());
   pAdvertising->addServiceUUID(pEnvService->getUUID());
   pAdvertising->setScanResponse(true); // false will reduce power consumtion
+  pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_DIR);
   pAdvertising->start();
 
   Serial.println(F("[BLE] Advertising Started"));

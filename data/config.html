@@ -84,24 +84,22 @@
       </nav>
     </header>
     <main>
-      <div id="beginSetup">
-        <h2>Setup for linear tanks</h2>
-        <p>In this mode, the sensor value is determined when the tank is empty and when it is full.
-          This is only suitable for tanks that have a linear design.</p>
-        <p>Make sure that your sensor is mounted correctly and that the tank has been completely emptied.
-          Then save the current measured value of your sensor.</p>
+      <div id="config">
+        <h4>Configuration</h4>
         <form>
           <p>
-            <label>Empty tank value</label><br>
-            <input type="number" id="lower" value="">
-            <button type="button" id="lowerbtn">Get value</button>
+            <label>Hostname</label><br>
+            <input type="text" id="hostname" name="hostname" required pattern="^[a-zA-Z][a-zA-Z\d-]{1,30}[a-zA-Z\d]$" 
+                  title="Enter a hostname, 3-32 characters, beginning with a letter and containing only alphanumeric
+                    characters and/or a hyphen. It must end with an alphanumeric." value="">
           </p>
           <p>
-            <label>Full tank value</label><br>
-            <input type="number" id="upper" value="">
-            <button type="button" id="upperbtn">Get value</button>
+            <label>
+              <input type="checkbox" id="enablewifi" value="true">
+              Enable WiFi (increased power consumption)
+            </label>
           </p>
-          <button type="button" id="btn-finish">Finish</button>
+          <button id="btn-finish" type="button">Save</button>
         </form>
       </div>
       <div id="modal" class="overlay">
@@ -121,65 +119,51 @@
     </footer>
     <script src="js/jquery-3.6.0.min.js"></script>
     <script>
-      var errorGetFun = function() {
-          $("#modaltitel").html("Error");
-          $("#modaltext").html("Unable to retrive data. Please try again!");
-          window.location.href='#modal'
-        }
-
-      $("#lowerbtn").click(function() {
-        $.get("/api/rawvalue", function( data ) {
-          $("#lower").val(data);
-        })
-        .fail(errorGetFun);
-      });
-      
-      $("#upperbtn").click(function() {
-        $.get("/api/rawvalue", function( data ) {
-          $("#upper").val(data);
-        })
-        .fail(errorGetFun);
-      });
-
-      var errorSendFun = function() {
-            $("#modaltitel").html("Error");
-            $("#modaltext").html("Unfortunately, it was not possible to complete the setup successfully. Please try again!");
-            window.location.href='#modal'
-          }
       $("#btn-finish").click(function() {
-        $.ajax("/api/setup/values", {
+        $("#modaltitel").html("Information");
+        $("#modaltext").html("Updating");
+        $.ajax("/api/config", {
           type : 'POST',
-          data : JSON.stringify({ upper: parseInt($("#upper").val()), lower: parseInt($("#lower").val()) }),
+          data : JSON.stringify({ 
+            hostname: String($("#hostname").val()),
+            enablewifi: Boolean($("#enablewifi").prop('checked'))
+          }),
           dataType : "json",
           contentType : 'application/json',
           success : function(data, status, jqXHR) { // success callback
-            $(location).prop('href', '/')
+            $("#modaltitel").html("Success");
+            $("#modaltext").html(data.message);
+            window.location.href='#modal'
           },
-          error : errorSendFun,
-          fail : errorSendFun
+          fail : function() {
+            $("#modaltitel").html("Error");
+            $("#modaltext").html("Failed to write data to NVS");
+            window.location.href='#modal'
+          }
         });
       });
-      
-      if (!!window.EventSource) {
-        var source = new EventSource('/events');
 
-        source.addEventListener('open', function(e) {
-          console.log("Events Connected");
-        }, false);
-
-        source.addEventListener('error', function(e) {
-          if (e.target.readyState != EventSource.OPEN) {
-            console.log("Events Disconnected");
+      // initial data loading
+      $.ajax("/api/config", {
+          type : 'GET',
+          dataType : "json",
+          contentType : 'application/json',
+          success : function(data, status, jqXHR) { // success callback
+            for (const [key, value] of Object.entries(data)) {
+              var ele = $("#"+key);
+              if (ele.is("input[type=checkbox]")) {
+                ele.prop('checked', Boolean(value));
+              } else {
+                ele.val(value);
+              }
+            };
+          },
+          fail : function() {
+            $("#message #messageModalLabel").html("Error");
+            $("#message #messageModalContent").html("Failed to get data from NVS");
+            window.location.href='#modal'
           }
-        }, false);
-
-        source.addEventListener('setup', function(e) {
-          console.log("new datapoint received");
-        }, false);
-        source.addEventListener('setuperror', function(e) {
-          console.log("an error occured durring setup: " + e);
-        }, false);
-      }
+        });
     </script>
   </body>
 </html>

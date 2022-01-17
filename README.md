@@ -26,7 +26,7 @@ The following aspects are the focus of this project:
 [![Live video demonstration](https://img.youtube.com/vi/gYvKPjnI3uc/0.jpg)](https://www.youtube.com/watch?v=gYvKPjnI3uc)
 
 #### Screenshots from the mobile UI
-<img src="images/level.png?raw=true" alt="Live level view" width="20%"><img src="images/setup.png?raw=true" alt="Setup" width="20%"><img src="images/setup-uniform.png?raw=true" alt="Setup for linear tanks" width="20%"><img src="images/setup-irregular.png?raw=true" alt="Setup for irregular formed tanks" width="20%"><img src="images/ota.png?raw=true" alt="Integrated over the air update" width="20%">
+<img src="images/level.png?raw=true" alt="Live level view" width="20%"><img src="images/config.png?raw=true" alt="Settings" width="20%"><img src="images/setup.png?raw=true" alt="Setup" width="20%"><img src="images/setup-uniform.png?raw=true" alt="Setup for linear tanks" width="20%"><img src="images/setup-irregular.png?raw=true" alt="Setup for irregular formed tanks" width="20%"><img src="images/ota.png?raw=true" alt="Integrated over the air update" width="20%">
 
 #### Photos of the prototype
 <img src="images/prototype1.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype2.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype3.jpg?raw=true" alt="Prototype Pictures" width="30%">
@@ -96,6 +96,10 @@ Once you have prepared everything, start the setup and now turn on the water tap
 The sensor now determines the increase in water level and calculates the percentage distribution in the tank at the end of the process.
 Once the tank is completely filled, turn off the water supply and wait about 5 seconds before completing the setup via the web interface so that the pressure can normalize.
 
+## Android Bluetooth Low Energy (BLE) App
+
+This sensor can be displayed using my [Android App](https://github.com/MartinVerges/smartsensors/). 
+
 ## Power saving mode
 
 This sensor is equipped with various techniques to save power.
@@ -134,5 +138,9 @@ These probes usually cost more than the components in this project, but are extr
 
 # License
 
-This project and all of it's deliverables are free to use for every private person in his own private projects.
-If you wan to use it in comercial projects, you have to ask for permission!
+rv-smart-tanksensor (c) by Martin Verges.
+
+rv-smart-tanksensor is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+
+You should have received a copy of the license along with this work.
+If not, see <http://creativecommons.org/licenses/by-nc-sa/4.0/>.
