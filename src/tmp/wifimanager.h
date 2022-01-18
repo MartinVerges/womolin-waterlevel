@@ -2,7 +2,7 @@
  *
  * Wifi Manager
  *
- * (c) 2021 Martin Verges
+ * (c) 2022 Martin Verges
  *
 **/
 

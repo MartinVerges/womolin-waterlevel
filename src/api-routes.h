@@ -3,7 +3,7 @@
  * Tanklevel Pressure Sensor
  * https://github.com/MartinVerges/rv-smart-tanksensor
  *
- * (c) 2021 Martin Verges
+ * (c) 2022 Martin Verges
  *
 **/
 
@@ -11,6 +11,10 @@
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 #include <LITTLEFS.h>
+
+extern bool enableWifi;
+extern bool enableBle;
+extern bool enableMqtt;
 
 void APIRegisterRoutes() {
   webServer.on("/api/wifi-list", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -116,8 +120,6 @@ void APIRegisterRoutes() {
       deserializeJson(jsonBuffer, (const char*)data);
 
       String hostname = jsonBuffer["hostname"].as<String>();
-      bool enablewifi = jsonBuffer["enablewifi"].as<boolean>();
-
       if (!hostname || hostname.length() < 3 || hostname.length() > 32) {
         // TODO: Add better checks according to RFC hostnames
         request->send(422, "text/plain", "Invalid hostname");
@@ -125,12 +127,24 @@ void APIRegisterRoutes() {
       }
 
       int s = 0;
-      if (preferences.putString("hostName", hostname)) s++;
-      if (preferences.putBool("enableWifi", enablewifi)) {
-        enableWifi = enablewifi;
+      if (preferences.putBool("enableWifi", jsonBuffer["enablewifi"].as<boolean>())) {
+        enableWifi = jsonBuffer["enablewifi"].as<boolean>();
         s++;
       }
-      if (s == 2) {
+      if (preferences.putBool("enableBle", jsonBuffer["enableble"].as<boolean>())) {
+        enableBle = jsonBuffer["enableble"].as<boolean>();
+        s++;
+      }
+      if (preferences.putString("hostName", hostname)) s++;
+      if (preferences.putBool("enablemqtt", jsonBuffer["enablemqtt"].as<boolean>())) {
+        enableMqtt = jsonBuffer["enablemqtt"].as<boolean>();
+        s++;
+      }
+      if (preferences.putUInt("mqttport", jsonBuffer["mqttport"].as<uint16_t>())) s++;
+      if (preferences.putString("mqtthost", jsonBuffer["mqtthost"].as<String>())) s++;
+      if (preferences.putString("mqtttopic", jsonBuffer["mqtttopic"].as<String>())) s++;
+      
+      if (s == 7) {
         request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
       } else request->send(200, "text/plain", "New hostname stored in NVS");
     }

@@ -3,7 +3,7 @@
  * Tanklevel Pressure Sensor
  * https://github.com/MartinVerges/rv-smart-tanksensor
  *
- * (c) 2021 Martin Verges
+ * (c) 2022 Martin Verges
  *
 **/
 

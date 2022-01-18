@@ -1,3 +1,12 @@
+/**
+ *
+ * Tanklevel Pressure Sensor
+ * https://github.com/MartinVerges/rv-smart-tanksensor
+ *
+ * (c) 2022 Martin Verges
+ *
+**/
+
 #if !(defined(ESP32))
   #error This code is intended to run on the ESP32 platform! Please check your Tools->Board setting.
 #endif
@@ -29,6 +38,18 @@
 #include "global.h"
 #include "wifi-events.h"
 #include "api-routes.h"
+#include "mqtt.h"
+#include "ble.h"
+
+extern AsyncMqttClient mqttClient;
+extern String mqttTopic;
+
+void MDNSRegister() {
+  if (!enableWifi) return;
+  Serial.println("[MDNS] Starting mDNS Service!");
+  MDNS.begin(hostName.c_str());
+  MDNS.addService("http", "tcp", 80);
+}
 
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
@@ -64,7 +85,7 @@ void sleepOrDelay() {
     yield();
     delay(50);
   } else {
-    delay(50); return;
+    delay(50); return; // FIXME: this needs to be changed to correctly handle MQTT, BLE and WIFI
     // We can save a lot of power by going into deepsleep
     // Thid disables WIFI and everything.
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
@@ -124,12 +145,25 @@ void setup() {
   if (!preferences.begin(NVS_NAMESPACE)) {
     preferences.clear();
   }
-  enableWifi = preferences.getBool("enableWifi", false);
+
+  // Load Settings from NVS
   hostName = preferences.getString("hostName");
   if (hostName.isEmpty()) {
     hostName = "tanksensor";
     preferences.putString("hostName", hostName);
   }
+  enableWifi = preferences.getBool("enableWifi", true);
+  enableBle = preferences.getBool("enableBle", true);
+  enableMqtt = preferences.getBool("enableMqtt", false);
+
+  if (enableMqtt) {
+    mqttClient.onConnect(onMqttConnect);
+    mqttClient.onDisconnect(onMqttDisconnect);
+    mqttTopic = preferences.getString("mqtttopic", "verges/tanklevel");
+    String mqtthost = preferences.getString("mqtthost", "localhost");
+    uint16_t mqttport = preferences.getUInt("mqttport", 1883);
+    mqttClient.setServer(mqtthost.c_str(), mqttport);
+  }    
 
   if (!Tanklevel.isConfigured()) {
     // we need to bring up WiFi to provide a convenient setup routine
@@ -171,7 +205,7 @@ void setup() {
     MDNSRegister();
   } // end wifi
 
-  createBleServer();
+  if (enableBle) createBleServer(hostName);
 }
 
 // Soft reset the ESP to start with setup() again, but without loosing RTC_DATA as it would be with ESP.reset()
@@ -233,10 +267,14 @@ void loop() {
         val = Tanklevel.getPercentage();
         events.send(String(val).c_str(), "level", runtime());
         dacValue(val);
-        updateBleCharacteristic(val);
+        if (enableBle) updateBleCharacteristic(val);
+        if (enableMqtt && mqttTopic.length() > 0) {
+          mqttClient.publish((mqttTopic + "/tanklevel").c_str(), 0, true, String(val).c_str());
+        }
         Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getMedian(true));
       } else {
         dacValue(0);
+        if (enableBle) updateBleCharacteristic(0);
         val = Tanklevel.getMedian();
         Serial.printf("[SENSOR] Tanklevel not configured, please run the setup! Raw sensor value = %d\n", val);
       }

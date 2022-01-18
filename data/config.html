@@ -87,17 +87,26 @@
       <div id="config">
         <h4>Configuration</h4>
         <form>
+          <p><label>
+            <input type="checkbox" id="enablewifi" value="true">Enable WiFi
+          </label><br>
+          <label>
+            <input type="checkbox" id="enableble" value="true">Enable Bluetooth (BLE)
+          </label></p>
           <p>
             <label>Hostname</label><br>
-            <input type="text" id="hostname" name="hostname" required pattern="^[a-zA-Z][a-zA-Z\d-]{1,30}[a-zA-Z\d]$" 
-                  title="Enter a hostname, 3-32 characters, beginning with a letter and containing only alphanumeric
-                    characters and/or a hyphen. It must end with an alphanumeric." value="">
+            <input type="text" id="hostname" pattern="^[a-zA-Z][a-zA-Z\d-]{1,32}[a-zA-Z\d]$"
+              value="" placeholder="changeme" minlength="3" maxlength="32">
           </p>
-          <p>
-            <label>
-              <input type="checkbox" id="enablewifi" value="true">
-              Enable WiFi (increased power consumption)
-            </label>
+          <p><label>
+            <input type="checkbox" id="enablemqtt" value="true">Publish to MQTT Broker
+            </label><br>
+            <label>MQTT IP or Hostname</label><br> 
+            <input type="text" id="mqtthost" placeholder="mqtt.net.local" maxlength="32"><br>
+            <label>MQTT Port</label><br> 
+            <input type="number" id="mqttport" min="1" max="65535"><br>
+            <label>MQTT Topic</label><br> 
+            <input type="text" id="mqtttopic" placeholder="some/sensor" maxlength="32">
           </p>
           <button id="btn-finish" type="button">Save</button>
         </form>
