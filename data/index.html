@@ -34,7 +34,7 @@
       </nav>
     </header>
     <main>
-      <div>Current Level <strong id="tankleveltext">70%</strong></div>
+      <div>Current Level <strong id="tankleveltext">0%</strong></div>
       <div class="progress-bar">
         <span id="tanklevel" class="progress-bar-fill" style="width: 0%;"></span>
       </div>
@@ -51,7 +51,7 @@
         $("#tankleveltext").text(level+"%");
       }
 
-      $.get( "/api/level", function( level ) {
+      $.get( "/api/level/current", function( level ) {
         updateProgressBar(parseInt(level));
       });
 

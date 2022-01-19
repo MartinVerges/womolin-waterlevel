@@ -248,18 +248,18 @@ void loop() {
       Timing.lastSensorRead = runtime();
       int val = -1;
       if (Tanklevel.isConfigured()) {
-        val = Tanklevel.getPercentage();
+        val = Tanklevel.getCalculatedPercentage();
         events.send(String(val).c_str(), "level", runtime());
         if (enableDac) dacValue(val);
         if (enableBle) updateBleCharacteristic(val);
         if (enableMqtt && mqttTopic.length() > 0) {
           mqttClient.publish((mqttTopic + "/tanklevel").c_str(), 0, true, String(val).c_str());
         }
-        Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getMedian(true));
+        Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getSensorMedianValue(true));
       } else {
         if (enableDac) dacValue(0);
         if (enableBle) updateBleCharacteristic(0);
-        val = Tanklevel.getMedian();
+        val = Tanklevel.getSensorMedianValue();
         Serial.printf("[SENSOR] Tanklevel not configured, please run the setup! Raw sensor value = %d\n", val);
       }
     }

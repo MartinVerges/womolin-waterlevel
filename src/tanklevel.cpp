@@ -33,6 +33,20 @@ bool TANKLEVEL::writeToNVS() {
   }
 }
 
+bool TANKLEVEL::writeSingleEntrytoNVS(uint8_t i, int value) {
+  if (i == 255 && preferences.begin(NVS.c_str(), false)) {
+    preferences.putBool("setupDone", value > 0);
+    preferences.end();
+    return true;
+  } else if (i < 0 or i > 100) return false;
+  if (preferences.begin(NVS.c_str(), false)) {
+    preferences.putInt(String("val" + String(i)).c_str(), value);
+    preferences.end();
+    return true;
+  }
+  return false;
+}
+
 int TANKLEVEL::getLevelData(int perc) {
   if (perc >= 0 and perc <= 100) {
     return levelConfig.readings[perc];
@@ -69,7 +83,7 @@ bool TANKLEVEL::isConfigured() {
   return levelConfig.readings[0] > 0;
 }
 
-int TANKLEVEL::getMedian(bool cached) {
+int TANKLEVEL::getSensorMedianValue(bool cached) {
   if (cached) return lastMedian;
   if (hx711.wait_ready_retry(100, 5)) {
     lastMedian = (int)floor(hx711.get_median_value(10) / 1000);
@@ -80,9 +94,9 @@ int TANKLEVEL::getMedian(bool cached) {
   }
 }
 
-int TANKLEVEL::getPercentage(bool cached) {
-  int val = lastState;
-  if (!cached) val = getMedian(false);
+int TANKLEVEL::getCalculatedPercentage(bool cached) {
+  int val = lastMedian;
+  if (!cached) val = getSensorMedianValue(false);
   for(int x=100; x>0; x--) {
     if (val >= levelConfig.readings[x]) return x;
   }
@@ -130,7 +144,7 @@ bool TANKLEVEL::beginLevelSetup() {
   setupConfig.start = false;
   if (!isSetupRunning()) {  // Start the level setup
     setupConfig.valueCount = 0;
-    setupConfig.readings[setupConfig.valueCount++] = getMedian(false);
+    setupConfig.readings[setupConfig.valueCount++] = getSensorMedianValue(false);
     Serial.printf("Begin level setup with minValue of %d\n", setupConfig.readings[0]);
     return true;
   } else {
@@ -247,8 +261,8 @@ int TANKLEVEL::runLevelSetup() {
       endLevelSetup();
       return 0;
     }
-    Serial.printf("Recording new entry with a value of %d\n", getMedian(false));
-    setupConfig.readings[setupConfig.valueCount++] = getMedian(true);
+    Serial.printf("Recording new entry with a value of %d\n", getSensorMedianValue(false));
+    setupConfig.readings[setupConfig.valueCount++] = getSensorMedianValue(true);
     return lastMedian;
   } else return 0;
 }

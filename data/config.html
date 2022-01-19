@@ -134,7 +134,7 @@
     <script src="js/jquery-3.6.0.min.js"></script>
     <script>
       $("#btn-restart").click(function() {
-        $.ajax("/api/config", {
+        $.ajax("/api/reset", {
           type : 'POST',
           dataType : "json",
           contentType : 'application/json',

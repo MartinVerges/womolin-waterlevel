@@ -7,6 +7,7 @@
  *
 **/
 
+#include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
@@ -25,10 +26,11 @@ void APIRegisterRoutes() {
     request->send(200, "application/json", "{\"message\":\"Resetting the sensor!\"}");
     request->send(response);
     yield();
-    // FIXME: we can only hope that the response get out to the client, or?
+    delay(250);
     ESP.restart();
   });
-  webServer.on("/api/wifi-list", HTTP_GET, [](AsyncWebServerRequest *request) {
+
+  webServer.on("/api/wifi/list", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument jsonDoc(2048);
     JsonArray wifiList = jsonDoc.createNestedArray("wifiList");
@@ -59,7 +61,7 @@ void APIRegisterRoutes() {
     request->send(response);
   });
 
-  webServer.on("/api/wifi-status", HTTP_GET, [](AsyncWebServerRequest *request) {
+  webServer.on("/api/wifi/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument jsonDoc(1024);
 
@@ -90,6 +92,7 @@ void APIRegisterRoutes() {
       request->send(200, "application/json", "{\"message\":\"Begin of Setup requested\"}");
     } else request->send(200, "text/plain", "Begin of Setup requested");
   });
+
   webServer.on("/api/setup/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {
       String output;
@@ -99,18 +102,21 @@ void APIRegisterRoutes() {
       request->send(200, "application/json", output);
     } else request->send(200, "text/plain", String(Tanklevel.isSetupRunning()));
   });
+
   webServer.on("/api/setup/end", HTTP_POST, [](AsyncWebServerRequest *request) {
     Tanklevel.setEndAsync();
     if (request->contentType() == "application/json") {
       request->send(200, "application/json", "{\"message\":\"End of Setup requested\"}");
     } else request->send(200, "text/plain", "End of Setup requested");
   });
+
   webServer.on("/api/setup/abort", HTTP_POST, [](AsyncWebServerRequest *request) {
     Tanklevel.setAbortAsync();
     if (request->contentType() == "application/json") {
       request->send(200, "application/json", "{\"message\":\"Abort requested\"}");
     } else request->send(200, "text/plain", "Abort requested");
   });
+
   webServer.onRequestBody([](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
     if (request->url() == "/api/setup/values" && request->method() == HTTP_POST) {
       // Do a simple linear tank level setup using lower+upper reading
@@ -126,7 +132,6 @@ void APIRegisterRoutes() {
       } else request->send(200, "application/json", "{\"message\":\"Setup completed\"}");
 
     } else if (request->url() == "/api/config" && request->method() == HTTP_POST) {
-      // Configure the hostname of the sensor
       DynamicJsonDocument jsonBuffer(1024);
       deserializeJson(jsonBuffer, (const char*)data);
 
@@ -167,8 +172,29 @@ void APIRegisterRoutes() {
       preferences.putString("mqttPass", jsonBuffer["mqttpass"].as<String>());
       
       request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
+
+    } else if (request->url() == "/api/level/data" && request->method() == HTTP_POST) {
+      DynamicJsonDocument jsonBuffer(2048);
+      deserializeJson(jsonBuffer, (const char*)data);
+
+      Tanklevel.writeSingleEntrytoNVS(255, jsonBuffer["setupDone"].as<boolean>());
+
+      JsonArray array = jsonBuffer["data"].as<JsonArray>();
+      uint8_t i = 0;
+      for (JsonVariant v : array) {
+          Tanklevel.writeSingleEntrytoNVS(i, v.as<int>());
+          yield();
+          i++;
+          if (i > 100) break;
+      }
+      request->send(200, "application/json", "{\"message\":\"Wrote level config to NVS, restarting now!\"}");
+      
+      yield();
+      delay(250);
+      ESP.restart();
     }
   });
+
   webServer.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {
       String output;
@@ -190,36 +216,40 @@ void APIRegisterRoutes() {
       serializeJson(doc, output);
       request->send(200, "application/json", output);
     } else request->send(415, "text/plain", "Unsupported Media Type");
-          request->send(415, "application/json", "{\"message\":\"Unsupported Media Type!\"}");
-
   });
+
   webServer.on("/api/rawvalue", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {
       String output;
       StaticJsonDocument<16> doc;
-      doc["raw"] = Tanklevel.getMedian(true);
+      doc["raw"] = Tanklevel.getSensorMedianValue(true);
       serializeJson(doc, output);
       request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)Tanklevel.getMedian(true));
+    } else request->send(200, "text/plain", (String)Tanklevel.getSensorMedianValue(true));
   });
-  webServer.on("/api/level", HTTP_GET, [](AsyncWebServerRequest *request) {
+
+  webServer.on("/api/level/current", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {
       String output;
       StaticJsonDocument<16> doc;
-      doc["levelPercent"] = Tanklevel.getPercentage(true);
+      doc["levelPercent"] = Tanklevel.getCalculatedPercentage(true);
       serializeJson(doc, output);
       request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)Tanklevel.getPercentage(true));
+    } else request->send(200, "text/plain", (String)Tanklevel.getCalculatedPercentage(true));
   });
+
   webServer.on("/api/esp/heap", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getFreeHeap()));
   });
+
   webServer.on("/api/esp/cores", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getChipCores()));
   });
+
   webServer.on("/api/esp/freq", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
   });
+
   webServer.on("/api/wifi/info", HTTP_GET, [](AsyncWebServerRequest *request) {
       AsyncResponseStream *response = request->beginResponseStream("application/json");
       DynamicJsonDocument json(1024);
@@ -229,24 +259,18 @@ void APIRegisterRoutes() {
       serializeJson(json, *response);
       request->send(response);
   });
-  webServer.on("/api/wifi/disable", HTTP_POST, [](AsyncWebServerRequest *request) {
-    enableWifi = false;
-    preferences.putBool("enableWifi", false);
-    if (request->contentType() == "application/json") { 
-      request->send(200, "application/json", "{\"message\":\"Shutting down WiFi\"}");
-    } else request->send(200, "text/plain", "Shutting down WiFi");
-  });
-  webServer.on("/api/wifi/enable", HTTP_POST, [](AsyncWebServerRequest *request) {
-    enableWifi = true;
-    preferences.putBool("enableWifi", true);
-    if (request->contentType() == "application/json") { 
-      request->send(200, "application/json", "{\"message\":\"Permanently enabling WiFi\"}");
-    } else request->send(200, "text/plain", "Permanently enabling WiFi");
-  });
-  webServer.on("/api/level-info", HTTP_GET, [](AsyncWebServerRequest *request) {
+
+  webServer.on("/api/level/data", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument json(3072);
-    for (int i = 0; i < 100; i++) json["val" + String(i)] = Tanklevel.getLevelData(i);
+    json["setupDone"] = Tanklevel.isConfigured();
+
+    const size_t CAPACITY = JSON_ARRAY_SIZE(101);
+    StaticJsonDocument<CAPACITY> doc;
+    JsonArray array = doc.to<JsonArray>();
+    for (int i = 0; i <= 100; i++) array.add(Tanklevel.getLevelData(i));
+    json["data"] = array;
+
     serializeJson(json, *response);
     request->send(response);
   });

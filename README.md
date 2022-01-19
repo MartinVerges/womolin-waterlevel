@@ -123,6 +123,8 @@ Here you can correct the WLAN data.
 All provided RESTful APIs have been documented using the free [Insomnia software](https://insomnia.rest/).
 You can import the collection file called [Insomnia_api_spec.json](/Insomnia_api_spec.json?raw=true) and find all available API endpoints and run and test them directly.
 
+<img src="images/api.png?raw=true" alt="Insomnia API description" width="40%">
+
 ## Alternatives
 
 ### Pressure based (like this project)

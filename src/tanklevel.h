@@ -29,7 +29,6 @@ class TANKLEVEL
             int readings[101] = {0};               // pressure readings to map to percentage filling 0% - 100%
         } levelConfig;
 
-        int lastState = 0;                         // last reading in percent
         int lastMedian = 0;                        // last reading median value
 
         struct state_t {
@@ -70,10 +69,10 @@ class TANKLEVEL
         void setLimits(float lower_end, float upper_end);
 
         // Read Median(10) raw value from sensor
-        int getMedian(bool cached = false);
+        int getSensorMedianValue(bool cached = false);
 
         // Calculate current level in percent. Requires valid level setup.
-        int getPercentage(bool cached = false);
+        int getCalculatedPercentage(bool cached = false);
 
         // Get the configured level for a percentage value
         int getLevelData(int perc);
@@ -86,6 +85,9 @@ class TANKLEVEL
 
         // Create a level db from lower and upper reading (only for tanks with linear form)
         bool setupFrom2Values(int lower, int upper);
+
+        // Write a single level data entry to NVS, i=0-100%, 255 value 0 or 1 for levelsetup done
+        bool writeSingleEntrytoNVS(uint8_t i, int value);
 
         // Start a new level setup
         bool beginLevelSetup();
