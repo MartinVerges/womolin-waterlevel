@@ -9,11 +9,26 @@
 
 #include <WiFi.h>
 #include "mqtt.h"
+#include <ESPmDNS.h>
+
+extern bool enableWifi;
+extern bool enableMqtt;
+
+void MDNSBegin(String hostname) {
+  if (!enableWifi) return;
+  Serial.println("[MDNS] Starting mDNS Service!");
+  MDNS.begin(hostname.c_str());
+  MDNS.addService("http", "tcp", 80);
+}
+
+void MDNSEnd() {
+  MDNS.end();
+}
 
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   Serial.print("[WIFI] WiFi connected with IP address: ");
   Serial.println(WiFi.localIP());
-  connectToMqtt();
+  if (enableMqtt) connectToMqtt();
 }
 
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {

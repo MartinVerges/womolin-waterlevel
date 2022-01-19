@@ -14,6 +14,10 @@ static NimBLEServer* pServer;
 
 bool enableBle = true;                      // Enable Ble, disable to reduce power consumtion, stored in NVS
 
+void stopBleServer() {
+  NimBLEDevice::deinit();
+}
+
 void createBleServer(String hostname) {
   Serial.println(F("[BLE] Initializing the Bluetooth low energy (BLE) stack"));
   NimBLEDevice::init(hostname.c_str());

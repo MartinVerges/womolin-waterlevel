@@ -8,9 +8,10 @@
 **/
 
 #include <AsyncMqttClient.h>
+#include <Preferences.h>
 
 extern bool enableMqtt;
 
+void prepareMqtt(Preferences& preferences);
 void connectToMqtt();
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
-void onMqttConnect(bool sessionPresent);

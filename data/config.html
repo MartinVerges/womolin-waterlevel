@@ -87,28 +87,33 @@
       <div id="config">
         <h4>Configuration</h4>
         <form>
-          <p><label>
-            <input type="checkbox" id="enablewifi" value="true">Enable WiFi
-          </label><br>
-          <label>
-            <input type="checkbox" id="enableble" value="true">Enable Bluetooth (BLE)
-          </label></p>
           <p>
             <label>Hostname</label><br>
             <input type="text" id="hostname" pattern="^[a-zA-Z][a-zA-Z\d-]{1,32}[a-zA-Z\d]$"
               value="" placeholder="changeme" minlength="3" maxlength="32">
           </p>
-          <p><label>
-            <input type="checkbox" id="enablemqtt" value="true">Publish to MQTT Broker
-            </label><br>
-            <label>MQTT IP or Hostname</label><br> 
-            <input type="text" id="mqtthost" placeholder="mqtt.net.local" maxlength="32"><br>
-            <label>MQTT Port</label><br> 
-            <input type="number" id="mqttport" min="1" max="65535"><br>
-            <label>MQTT Topic</label><br> 
-            <input type="text" id="mqtttopic" placeholder="some/sensor" maxlength="32">
+          <p>
+            <label><input type="checkbox" id="enablewifi" value="true">Enable WiFi</label><br>
+            <label><input type="checkbox" id="enableble" value="true">Enable Bluetooth (BLE)</label><br>
+            <label><input type="checkbox" id="enabledac" value="true">Enable DAC Analog Output</label><br>
           </p>
+          <details>
+            <summary><label><input type="checkbox" id="enablemqtt" value="true">Publish to MQTT Broker</label><br></summary>
+            <p>
+              <label>MQTT IP or Hostname</label><br> 
+              <input type="text" id="mqtthost" placeholder="mqtt.net.local" maxlength="32"><br>
+              <label>MQTT Port</label><br> 
+              <input type="number" id="mqttport" min="1" max="65535" placeholder="1883"><br>
+              <label>MQTT Topic</label><br> 
+              <input type="text" id="mqtttopic" placeholder="some/sensor" maxlength="32"><br>
+              <label>MQTT Username (optional)</label><br> 
+              <input type="text" id="mqttuser" placeholder="Username" maxlength="32"><br>
+              <label>MQTT Password (optional)</label><br> 
+              <input type="text" id="mqttpass" placeholder="Password" maxlength="32"><br>
+            </p>
+          </details>
           <button id="btn-finish" type="button">Save</button>
+          <button id="btn-restart" type="button">Restart</button>
         </form>
       </div>
       <div id="modal" class="overlay">
@@ -128,15 +133,9 @@
     </footer>
     <script src="js/jquery-3.6.0.min.js"></script>
     <script>
-      $("#btn-finish").click(function() {
-        $("#modaltitel").html("Information");
-        $("#modaltext").html("Updating");
+      $("#btn-restart").click(function() {
         $.ajax("/api/config", {
           type : 'POST',
-          data : JSON.stringify({ 
-            hostname: String($("#hostname").val()),
-            enablewifi: Boolean($("#enablewifi").prop('checked'))
-          }),
           dataType : "json",
           contentType : 'application/json',
           success : function(data, status, jqXHR) { // success callback
@@ -152,6 +151,47 @@
         });
       });
 
+      var errorFunPutData = function() {
+            $("#modaltitel").html("Error");
+            $("#modaltext").html("Failed to write data to NVS");
+            window.location.href='#modal'
+          }
+      $("#btn-finish").click(function() {
+        $("#modaltitel").html("Information");
+        $("#modaltext").html("Updating");
+        window.location.href='#modal'
+
+        $.ajax("/api/config", {
+          type : 'POST',
+          data : JSON.stringify({ 
+            hostname: String($("#hostname").val()),
+            enablewifi: Boolean($("#enablewifi").prop('checked')),
+            enableble: Boolean($("#enableble").prop('checked')),
+            enabledac: Boolean($("#enabledac").prop('checked')),
+            enablemqtt: Boolean($("#enablemqtt").prop('checked')),
+            mqtthost: String($("#mqtthost").val()),
+            mqttport: parseInt($("#mqttport").val()),
+            mqtttopic: String($("#mqtttopic").val()),
+            mqttuser: String($("#mqttuser").val()),
+            mqttpass: String($("#mqttpass").val())
+          }),
+          dataType : "json",
+          contentType : 'application/json',
+          success : function(data, status, jqXHR) { // success callback
+            $("#modaltitel").html("Success");
+            $("#modaltext").html(data.message);
+            window.location.href='#modal'
+          },
+          error : errorFunPutData,
+          fail : errorFunPutData
+        });
+      });
+
+      var errorFunGetData = function() {
+            $("#message #messageModalLabel").html("Error");
+            $("#message #messageModalContent").html("Failed to get data from NVS");
+            window.location.href='#modal'
+          }
       // initial data loading
       $.ajax("/api/config", {
           type : 'GET',
@@ -167,11 +207,8 @@
               }
             };
           },
-          fail : function() {
-            $("#message #messageModalLabel").html("Error");
-            $("#message #messageModalContent").html("Failed to get data from NVS");
-            window.location.href='#modal'
-          }
+          error : errorFunGetData,
+          fail : errorFunGetData
         });
     </script>
   </body>

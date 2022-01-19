@@ -11,12 +11,23 @@
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 #include <LITTLEFS.h>
+#include "ble.h"
+#include "mqtt.h"
 
 extern bool enableWifi;
 extern bool enableBle;
 extern bool enableMqtt;
+extern bool enableDac;
 
 void APIRegisterRoutes() {
+  webServer.on("/api/reset", HTTP_POST, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    request->send(200, "application/json", "{\"message\":\"Resetting the sensor!\"}");
+    request->send(response);
+    yield();
+    // FIXME: we can only hope that the response get out to the client, or?
+    ESP.restart();
+  });
   webServer.on("/api/wifi-list", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument jsonDoc(2048);
@@ -116,48 +127,71 @@ void APIRegisterRoutes() {
 
     } else if (request->url() == "/api/config" && request->method() == HTTP_POST) {
       // Configure the hostname of the sensor
-      DynamicJsonDocument jsonBuffer(256);
+      DynamicJsonDocument jsonBuffer(1024);
       deserializeJson(jsonBuffer, (const char*)data);
 
       String hostname = jsonBuffer["hostname"].as<String>();
       if (!hostname || hostname.length() < 3 || hostname.length() > 32) {
         // TODO: Add better checks according to RFC hostnames
-        request->send(422, "text/plain", "Invalid hostname");
+        request->send(422, "application/json", "{\"message\":\"Invalid hostname!\"}");
         return;
+      } else {
+        preferences.putString("hostName", hostname);
       }
 
-      int s = 0;
       if (preferences.putBool("enableWifi", jsonBuffer["enablewifi"].as<boolean>())) {
         enableWifi = jsonBuffer["enablewifi"].as<boolean>();
-        s++;
       }
       if (preferences.putBool("enableBle", jsonBuffer["enableble"].as<boolean>())) {
         enableBle = jsonBuffer["enableble"].as<boolean>();
-        s++;
+        stopBleServer();
+        if (enableBle) createBleServer(hostName);
+        yield();
       }
-      if (preferences.putString("hostName", hostname)) s++;
-      if (preferences.putBool("enablemqtt", jsonBuffer["enablemqtt"].as<boolean>())) {
+      if (preferences.putBool("enableWifi", jsonBuffer["enablewifi"].as<boolean>())) {
+        enableWifi = jsonBuffer["enablewifi"].as<boolean>();
+      }
+      if (preferences.putBool("enableDac", jsonBuffer["enabledac"].as<boolean>())) {
+        enableDac = jsonBuffer["enabledac"].as<boolean>();
+      }
+
+      // MQTT Settings
+      if (preferences.putBool("enableMqtt", jsonBuffer["enablemqtt"].as<boolean>())) {
         enableMqtt = jsonBuffer["enablemqtt"].as<boolean>();
-        s++;
+        if (enableMqtt) prepareMqtt(preferences);
       }
-      if (preferences.putUInt("mqttport", jsonBuffer["mqttport"].as<uint16_t>())) s++;
-      if (preferences.putString("mqtthost", jsonBuffer["mqtthost"].as<String>())) s++;
-      if (preferences.putString("mqtttopic", jsonBuffer["mqtttopic"].as<String>())) s++;
+      preferences.putUInt("mqttPort", jsonBuffer["mqttport"].as<uint16_t>());
+      preferences.putString("mqttHost", jsonBuffer["mqtthost"].as<String>());
+      preferences.putString("mqttTopic", jsonBuffer["mqtttopic"].as<String>());
+      preferences.putString("mqttUser", jsonBuffer["mqttuser"].as<String>());
+      preferences.putString("mqttPass", jsonBuffer["mqttpass"].as<String>());
       
-      if (s == 7) {
-        request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
-      } else request->send(200, "text/plain", "New hostname stored in NVS");
+      request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
     }
   });
   webServer.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {
       String output;
-      StaticJsonDocument<256> doc;
+      StaticJsonDocument<1024> doc;
+
       doc["hostname"] = hostName;
       doc["enablewifi"] = enableWifi;
+      doc["enableble"] = enableBle;
+      doc["enabledac"] = enableDac;
+
+      // MQTT
+      doc["enablemqtt"] = enableMqtt;
+      doc["mqttport"] = preferences.getUInt("mqttPort", 1883);
+      doc["mqtthost"] = preferences.getString("mqttHost", "");
+      doc["mqtttopic"] = preferences.getString("mqttTopic", "");
+      doc["mqttuser"] = preferences.getString("mqttUser", "");
+      doc["mqttpass"] = preferences.getString("mqttPass", "");
+
       serializeJson(doc, output);
       request->send(200, "application/json", output);
     } else request->send(415, "text/plain", "Unsupported Media Type");
+          request->send(415, "application/json", "{\"message\":\"Unsupported Media Type!\"}");
+
   });
   webServer.on("/api/rawvalue", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {

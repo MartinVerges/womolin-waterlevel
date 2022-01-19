@@ -11,23 +11,14 @@
 #include "tanklevel.h"
 #include <DNSServer.h>
 #include <ESPAsyncWebServer.h>
-#include <ESPmDNS.h>
-#include <esp_bt_device.h>
 #include <FS.h>
 #include <Preferences.h>
-#include <soc/rtc.h>
-extern "C" {
-  #include <esp_clk.h>
-}
 #define SPIFFS LITTLEFS 
 #include <LITTLEFS.h>
 
 #define GPIO_HX711_DOUT 33                  // GPIO pin to use for DT or DOUT
 #define GPIO_HX711_SCK 32                   // GPIO pin to use for SCK
 #define webserverPort 80                    // Start the Webserver on this port
-#define DAC_MIN_MVOLT 500.0                 // DAC output minimum value (0.5V on 0% tank level)
-#define DAC_MAX_MVOLT 3000.0                // DAC output maximum value (3V on 100% tank level)
-#define DAC_VCC 3300.0                      // DAC output maximum voltage from esp32 3.3V = 3300mV
 #define NVS_NAMESPACE "tanksensor"          // Preferences.h namespace to store settings
 
 RTC_DATA_ATTR struct timing_t {

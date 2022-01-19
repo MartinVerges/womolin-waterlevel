@@ -11,6 +11,9 @@
   #error This code is intended to run on the ESP32 platform! Please check your Tools->Board setting.
 #endif
 
+#define uS_TO_S_FACTOR   1000000           // Conversion factor for micro seconds to seconds
+#define TIME_TO_SLEEP    10                 // WakeUp interval
+
 // Fix an issue with the HX711 library on ESP32
 #if !(defined(ARDUINO_ARCH_ESP32))
   #define ARDUINO_ARCH_ESP32 true
@@ -18,37 +21,60 @@
 #undef USE_LITTLEFS
 #define USE_LITTLEFS true
 
-#define uS_TO_S_FACTOR   1000000           // Conversion factor for micro seconds to seconds
-#define TIME_TO_SLEEP    10                 // WakeUp interval
-
 #include <Arduino.h>
 #include <AsyncElegantOTA.h>
 #include <AsyncTCP.h>
-#include <driver/dac.h>
-#include <esp_sleep.h>
 #include <esp_wifi.h>
 #include <ESPAsync_WiFiManager.h>
-#include <Preferences.h>
-#include <driver/rtc_io.h>
 #include <WiFi.h>
+#include <Preferences.h>
 
-#include <NimBLEDevice.h>
-#include <NimBLEBeacon.h>
+// Power Management
+#include <driver/rtc_io.h>
+#include <esp_sleep.h>
+#include <soc/rtc.h>
+extern "C" {
+  #include <esp_clk.h>
+}
 
 #include "global.h"
 #include "wifi-events.h"
 #include "api-routes.h"
 #include "mqtt.h"
 #include "ble.h"
+#include "dac.h"
 
 extern AsyncMqttClient mqttClient;
 extern String mqttTopic;
 
-void MDNSRegister() {
-  if (!enableWifi) return;
-  Serial.println("[MDNS] Starting mDNS Service!");
-  MDNS.begin(hostName.c_str());
-  MDNS.addService("http", "tcp", 80);
+void IRAM_ATTR ISR_button1() {
+  button1.pressed = true;
+}
+
+void deepsleepForSeconds(int seconds) {
+    esp_sleep_enable_timer_wakeup(seconds * uS_TO_S_FACTOR);
+    esp_deep_sleep_start();
+}
+
+// Check if a feature is enabled, that prevents the
+// deep sleep mode of our ESP32 chip.
+void sleepOrDelay() {
+  if (enableWifi || enableBle || enableMqtt || Tanklevel.isSetupRunning()) {
+    yield();
+    delay(50);
+  } else {
+    // We can save a lot of power by going into deepsleep
+    // Thid disables WIFI and everything.
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    sleepTime = rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get());
+    rtc_gpio_pullup_en(button1.PIN);
+    rtc_gpio_pulldown_dis(button1.PIN);
+    esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
+
+    preferences.end();
+    Serial.println(F("[POWER] Sleeping..."));
+    esp_deep_sleep_start();
+  }
 }
 
 void print_wakeup_reason() {
@@ -79,48 +105,6 @@ uint64_t runtime() {
   return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get()) / 1000;
 }
 
-void sleepOrDelay() {
-  if (enableWifi || Tanklevel.isSetupRunning()) {
-    // We don't want to, or can't go to deepsleep
-    yield();
-    delay(50);
-  } else {
-    delay(50); return; // FIXME: this needs to be changed to correctly handle MQTT, BLE and WIFI
-    // We can save a lot of power by going into deepsleep
-    // Thid disables WIFI and everything.
-    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-    sleepTime = rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get());
-    rtc_gpio_pullup_en(button1.PIN);
-    rtc_gpio_pulldown_dis(button1.PIN);
-    esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
-
-    preferences.end();
-    Serial.println(F("[POWER] Sleeping..."));
-    esp_deep_sleep_start();
-  }
-}
-
-void IRAM_ATTR ISR_button1() {
-  button1.pressed = true;
-}
-
-uint8_t dacValue(uint8_t percentage) {
-  uint8_t val = 0;
-  if (percentage >= 0 && percentage <= 100) {
-    float start = DAC_MIN_MVOLT / DAC_VCC * 255;   // startvolt / maxvolt * datapoints
-    float end = DAC_MAX_MVOLT / DAC_VCC * 255;     // endvolt / maxvolt * datapoints
-    val = round(start + (end-start) / 100.0 * percentage);
-    dac_output_enable(DAC_CHANNEL_1);
-    dac_output_voltage(DAC_CHANNEL_1, val);
-    Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", val, (float)DAC_VCC/255*val);
-  } else {
-    dac_output_enable(DAC_CHANNEL_1);
-    dac_output_voltage(DAC_CHANNEL_1, 0);
-    Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", 0, 0.00);
-  }
-  return val;
-}
-
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -136,10 +120,9 @@ void setup() {
   
   if (!LITTLEFS.begin(true)) {
     Serial.println(F("[FS] An Error has occurred while mounting LITTLEFS"));
-    // reduce power consumption while having issues with NVS
-    esp_sleep_enable_timer_wakeup(5 * uS_TO_S_FACTOR);
-    esp_deep_sleep_start();
-    // delay(1000); ESP.restart();
+    // Reduce power consumption while having issues with NVS
+    // This won't fix the problem, a check of the sensor log is required
+    deepsleepForSeconds(5);
   }
   Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, String(NVS_NAMESPACE) + String("s1"));
   if (!preferences.begin(NVS_NAMESPACE)) {
@@ -154,16 +137,15 @@ void setup() {
   }
   enableWifi = preferences.getBool("enableWifi", true);
   enableBle = preferences.getBool("enableBle", true);
-  enableMqtt = preferences.getBool("enableMqtt", false);
+  enableDac = preferences.getBool("enableDac", true);
 
-  if (enableMqtt) {
-    mqttClient.onConnect(onMqttConnect);
-    mqttClient.onDisconnect(onMqttDisconnect);
-    mqttTopic = preferences.getString("mqtttopic", "verges/tanklevel");
-    String mqtthost = preferences.getString("mqtthost", "localhost");
-    uint16_t mqttport = preferences.getUInt("mqttport", 1883);
-    mqttClient.setServer(mqtthost.c_str(), mqttport);
-  }    
+  // Only enable Mqtt if Wifi is enabled as well
+  if (enableWifi) {
+    enableMqtt = preferences.getBool("enableMqtt", false);
+    if (enableMqtt) {
+      prepareMqtt(preferences);
+    } else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
+  }
 
   if (!Tanklevel.isConfigured()) {
     // we need to bring up WiFi to provide a convenient setup routine
@@ -202,17 +184,19 @@ void setup() {
     Serial.println(F("[WEB] HTTP server started"));
 
     WiFi.setAutoReconnect(true);
-    MDNSRegister();
+    MDNSBegin(hostName);
   } // end wifi
 
   if (enableBle) createBleServer(hostName);
+  else Serial.println(F("[BLE] Bluetooth low energy is disabled."));
 }
 
 // Soft reset the ESP to start with setup() again, but without loosing RTC_DATA as it would be with ESP.reset()
 void softReset() {
   if (enableWifi) {
     webServer.end();
-    MDNS.end();
+    MDNSEnd();
+    mqttClient.disconnect();
     WiFi.disconnect();
   }
   esp_sleep_enable_timer_wakeup(1);
@@ -233,7 +217,7 @@ void loop() {
     }
   }
   if (button1.pressed) {
-    Serial.println(F("Button pressed!"));
+    Serial.println(F("[EVENT] Button pressed!"));
     button1.pressed = false;
     if (!enableWifi) {
       // if no wifi is currently running, first button press will start it up
@@ -266,14 +250,14 @@ void loop() {
       if (Tanklevel.isConfigured()) {
         val = Tanklevel.getPercentage();
         events.send(String(val).c_str(), "level", runtime());
-        dacValue(val);
+        if (enableDac) dacValue(val);
         if (enableBle) updateBleCharacteristic(val);
         if (enableMqtt && mqttTopic.length() > 0) {
           mqttClient.publish((mqttTopic + "/tanklevel").c_str(), 0, true, String(val).c_str());
         }
         Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getMedian(true));
       } else {
-        dacValue(0);
+        if (enableDac) dacValue(0);
         if (enableBle) updateBleCharacteristic(0);
         val = Tanklevel.getMedian();
         Serial.printf("[SENSOR] Tanklevel not configured, please run the setup! Raw sensor value = %d\n", val);

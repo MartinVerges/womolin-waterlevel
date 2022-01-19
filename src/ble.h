@@ -14,5 +14,6 @@
 
 extern bool enableBle;
 
+void stopBleServer();
 void createBleServer(String hostname);
 void updateBleCharacteristic(int val);
