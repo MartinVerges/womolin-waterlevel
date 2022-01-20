@@ -1,4 +1,4 @@
-name: Create Release
+name: Create Firmware Release
 
 on:
   push:
@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: 'Checkout'
       uses: actions/checkout@v2
 
-    - name: Installing platformio
+    - name: 'Installing platformio'
       run: pip3 install -U platformio
 
-    - name: Building a firmware for ESP32
+    - name: 'Building a firmware for ESP32'
       run: |
         pio run
         pio run -t buildfs
@@ -27,17 +27,15 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: firmware.bin
-        path: |
-          ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+        path: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
 
     - name: 'Upload spiffs Artifact'
       uses: actions/upload-artifact@v2
       with:
         name: spiffs.bin
-        path: |
-          ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
-          
-    - name: Create Release
+        path: ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
+
+    - name: 'Create Release'
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -50,3 +48,21 @@ jobs:
           Firmware release
         draft: false
         prerelease: false
+
+    - name: 'Upload firmware Artifact to release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+        asset_name: firmware.bin
+
+    - name: 'Upload spiffs Artifact to release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
+        asset_name: spiffs.bin
