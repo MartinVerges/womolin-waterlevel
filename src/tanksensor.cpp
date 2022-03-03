@@ -236,7 +236,7 @@ void loop() {
       Timing.lastSetupRead = runtime();
       int val = Tanklevel.runLevelSetup();
       if (val > 0) {
-        events.send(String(val).c_str(), "setup", runtime());
+        events.send(String(val).c_str(), "reading", runtime()); 
       } else {
         events.send("Unable to read data from sensor!", "setuperror", runtime());
         Serial.println(F("[SENSOR] Unable to read data from sensor!"));

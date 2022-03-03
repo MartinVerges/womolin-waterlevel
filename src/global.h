@@ -32,7 +32,7 @@ RTC_DATA_ATTR struct timing_t {
 
   // Setup executing in loop()
   uint64_t lastSetupRead = 0;               // last millis() from Setup run
-  const unsigned int setupInterval = 250;   // Interval in ms to execute code
+  const unsigned int setupInterval = 15 * 60 * 1000 / 255;   // Interval in ms to execute code
 } Timing;
 
 RTC_DATA_ATTR bool startWifiConfigPortal = false; // Start the config portal on setup() (default set by wakeup funct.)

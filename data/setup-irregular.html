@@ -22,14 +22,20 @@
           Please pay particular attention to the perfect tightness of the hose and that it reaches straight to the bottom of the tank. 
           Otherwise, the entire content would not be detected and the display would be incorrect.</p>
         <p>Now prepare everything for filling the tank.
-          As soon as you can turn on the water tap, start the measuring process and then start filling.</p>
+          As soon as you can turn on the water tap, start the measuring process, wait 5 seconds and then start filling.</p>
+        <p>Please note, the setup process will timeout after 15 Minutes.
+          Please make sure you can fill up your tank within that time frame.</p>
           <button id="btn-start">Start</button>
       </div>
       <div id="runSetup" style="display: none">
         <h2>Carrying out the measurement process</h2>
         <p>The water flow should remain as constant as possible during the entire filling process.
           This contributes to high accuracy.</p>
-        <p>Once the tank is completely filled, you can complete the process.</p>
+        <p>Once the tank is completely filled, you can complete the process by pressing the finish button.</p>
+        <p>
+          <label>Current Sensor Reading</label><br>
+          <input type="number" id="currentvalue" value="" disabled>
+        </p>
         <button id="btn-finish">Finish</button>
         <button id="btn-abort">Abort</button>
       </div>
@@ -93,21 +99,22 @@
         }
       })
 
+      readinghistory = [];
       if (!!window.EventSource) {
         var source = new EventSource('/events');
+
+        source.addEventListener('reading', function(e) {
+          readinghistory.unshift(parseInt(e.data));
+          $("#currentvalue").val(readinghistory[0]);
+        }, false);
 
         source.addEventListener('open', function(e) {
           console.log("Events Connected");
         }, false);
-
         source.addEventListener('error', function(e) {
           if (e.target.readyState != EventSource.OPEN) {
             console.log("Events Disconnected");
           }
-        }, false);
-
-        source.addEventListener('setup', function(e) {
-          console.log("new datapoint received");
         }, false);
         source.addEventListener('setuperror', function(e) {
           console.log("an error occured durring setup: " + e);

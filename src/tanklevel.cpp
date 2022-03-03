@@ -263,6 +263,6 @@ int TANKLEVEL::runLevelSetup() {
     }
     Serial.printf("Recording new entry with a value of %d\n", getSensorMedianValue(false));
     setupConfig.readings[setupConfig.valueCount++] = getSensorMedianValue(true);
-    return lastMedian;
+    return getSensorMedianValue(true);
   } else return 0;
 }
