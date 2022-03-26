@@ -112,6 +112,9 @@ class TANKLEVEL
 
         // Print out the current level configuration database
         void printData();
+
+        // helper to get ESP32 runtime
+        uint64_t runtime();
 };
 
 #endif /* TANKLEVEL_h */

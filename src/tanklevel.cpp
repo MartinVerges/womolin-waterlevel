@@ -11,11 +11,29 @@
 #include <HX711.h>
 #include <Preferences.h>
 #include "tanklevel.h"
+#include <soc/rtc.h>
+extern "C" {
+  #include <esp_clk.h>
+}
+
+// Store some history in the RTC RAM that survives deep sleep
+#define MAX_RTC_HISTORY 100                        // store some data points to provide short term history
+typedef struct {
+    int currentLevel;
+    int sensorValue;
+    uint64_t timestamp;
+} sensorReadings;
+RTC_DATA_ATTR sensorReadings readingHistory[MAX_RTC_HISTORY];
+RTC_DATA_ATTR int readingHistoryCount = 0;
 
 TANKLEVEL::TANKLEVEL() {
 }
 
 TANKLEVEL::~TANKLEVEL() {
+}
+
+uint64_t TANKLEVEL::runtime() {
+  return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get()) / 1000;
 }
 
 bool TANKLEVEL::writeToNVS() {
@@ -96,9 +114,37 @@ int TANKLEVEL::getSensorMedianValue(bool cached) {
 
 int TANKLEVEL::getCalculatedPercentage(bool cached) {
   int val = lastMedian;
-  if (!cached) val = getSensorMedianValue(false);
+  if (!cached && val == 0) {
+    val = getSensorMedianValue(false);
+  } else if (!cached) {
+    Serial.print("attempt val = ");
+    Serial.print(val);
+    // This is an attempt to reduce strong fluctuations (e.g. while driving).
+    val = (val * 10 + getSensorMedianValue(false)) / 11;
+    Serial.print(" newval = ");
+    Serial.println(val);
+  }
   for(int x=100; x>0; x--) {
-    if (val >= levelConfig.readings[x]) return x;
+    if (val >= levelConfig.readings[x]) {
+      if (!cached) {
+        // Write a new entry to readingHistory
+        readingHistory[readingHistoryCount].currentLevel = x;
+        readingHistory[readingHistoryCount].sensorValue = val;
+        readingHistory[readingHistoryCount].timestamp = runtime();
+        readingHistoryCount++;
+        if (readingHistoryCount >= MAX_RTC_HISTORY) { // build a ringbuffer and overwrite the oldest entry
+          readingHistoryCount = 0;
+          for (int r = 0; r < MAX_RTC_HISTORY; r++){
+            Serial.printf("%d,%d,%" PRIu64 "\n",
+              readingHistory[r].currentLevel,
+              readingHistory[r].sensorValue,
+              readingHistory[r].timestamp
+            );
+          }
+        }
+      }
+      return x;
+    }
   }
   return 0;
 }
