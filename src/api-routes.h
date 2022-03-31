@@ -13,7 +13,6 @@
 #include <FS.h>
 #include <LITTLEFS.h>
 #include "ble.h"
-#include "mqtt.h"
 
 extern bool enableWifi;
 extern bool enableBle;
@@ -148,8 +147,8 @@ void APIRegisterRoutes() {
         enableWifi = jsonBuffer["enablewifi"].as<boolean>();
       }
       if (preferences.putBool("enableBle", jsonBuffer["enableble"].as<boolean>())) {
+        if (enableBle) stopBleServer();
         enableBle = jsonBuffer["enableble"].as<boolean>();
-        stopBleServer();
         if (enableBle) createBleServer(hostName);
         yield();
       }
@@ -161,15 +160,19 @@ void APIRegisterRoutes() {
       }
 
       // MQTT Settings
-      if (preferences.putBool("enableMqtt", jsonBuffer["enablemqtt"].as<boolean>())) {
-        enableMqtt = jsonBuffer["enablemqtt"].as<boolean>();
-        if (enableMqtt) prepareMqtt(preferences);
-      }
       preferences.putUInt("mqttPort", jsonBuffer["mqttport"].as<uint16_t>());
       preferences.putString("mqttHost", jsonBuffer["mqtthost"].as<String>());
       preferences.putString("mqttTopic", jsonBuffer["mqtttopic"].as<String>());
       preferences.putString("mqttUser", jsonBuffer["mqttuser"].as<String>());
       preferences.putString("mqttPass", jsonBuffer["mqttpass"].as<String>());
+      if (preferences.putBool("enableMqtt", jsonBuffer["enablemqtt"].as<boolean>())) {
+        if (enableMqtt) Mqtt.disconnect(true);
+        enableMqtt = jsonBuffer["enablemqtt"].as<boolean>();
+        if (enableMqtt) {
+          Mqtt.prepare();
+          Mqtt.connect();
+        }
+      }
       
       request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
 

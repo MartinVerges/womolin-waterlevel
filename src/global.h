@@ -15,6 +15,7 @@
 #include <Preferences.h>
 #define SPIFFS LITTLEFS 
 #include <LITTLEFS.h>
+#include "MQTTclient.h"
 
 #define GPIO_HX711_DOUT 33                  // GPIO pin to use for DT or DOUT
 #define GPIO_HX711_SCK 32                   // GPIO pin to use for SCK
@@ -25,6 +26,10 @@ RTC_DATA_ATTR struct timing_t {
   // Wifi interval in loop()
   uint64_t lastWifiCheck = 0;               // last millis() from WifiCheck
   const unsigned int wifiInterval = 30000;  // Interval in ms to execute code
+
+  // Check Services like MQTT, ...
+  uint64_t lastServiceCheck = 0;               // last millis() from ServiceCheck
+  const unsigned int serviceInterval = 10000;  // Interval in ms to execute code
 
   // Sensor data in loop()
   uint64_t lastSensorRead = 0;              // last millis() from Sensor read
@@ -53,6 +58,7 @@ AsyncWebServer webServer(webserverPort);
 AsyncEventSource events("/events");
 Preferences preferences;
 
+MQTTclient Mqtt;
 
 String getMacFromBT(String spacer = "") {
   String output = "";

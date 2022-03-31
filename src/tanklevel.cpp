@@ -117,12 +117,12 @@ int TANKLEVEL::getCalculatedPercentage(bool cached) {
   if (!cached && val == 0) {
     val = getSensorMedianValue(false);
   } else if (!cached) {
-    Serial.print("attempt val = ");
-    Serial.print(val);
+    //Serial.print("attempt val = ");
+    //Serial.print(val);
     // This is an attempt to reduce strong fluctuations (e.g. while driving).
     val = (val * 10 + getSensorMedianValue(false)) / 11;
-    Serial.print(" newval = ");
-    Serial.println(val);
+    //Serial.print(" newval = ");
+    //Serial.println(val);
   }
   for(int x=100; x>0; x--) {
     if (val >= levelConfig.readings[x]) {

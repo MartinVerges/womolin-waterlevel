@@ -40,12 +40,8 @@ extern "C" {
 #include "global.h"
 #include "wifi-events.h"
 #include "api-routes.h"
-#include "mqtt.h"
 #include "ble.h"
 #include "dac.h"
-
-extern AsyncMqttClient mqttClient;
-extern String mqttTopic;
 
 void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
@@ -129,6 +125,8 @@ void setup() {
     preferences.clear();
   }
 
+  Mqtt.addPreferences(&preferences);
+
   // Load Settings from NVS
   hostName = preferences.getString("hostName");
   if (hostName.isEmpty()) {
@@ -138,14 +136,6 @@ void setup() {
   enableWifi = preferences.getBool("enableWifi", true);
   enableBle = preferences.getBool("enableBle", true);
   enableDac = preferences.getBool("enableDac", true);
-
-  // Only enable Mqtt if Wifi is enabled as well
-  if (enableWifi) {
-    enableMqtt = preferences.getBool("enableMqtt", false);
-    if (enableMqtt) {
-      prepareMqtt(preferences);
-    } else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
-  }
 
   if (!Tanklevel.isConfigured()) {
     // we need to bring up WiFi to provide a convenient setup routine
@@ -189,6 +179,14 @@ void setup() {
 
   if (enableBle) createBleServer(hostName);
   else Serial.println(F("[BLE] Bluetooth low energy is disabled."));
+
+  // Only enable Mqtt if Wifi is enabled as well
+  if (enableWifi) {
+    enableMqtt = preferences.getBool("enableMqtt", false);
+    if (enableMqtt) {
+      Mqtt.prepare();
+    } else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
+  }
 }
 
 // Soft reset the ESP to start with setup() again, but without loosing RTC_DATA as it would be with ESP.reset()
@@ -196,7 +194,7 @@ void softReset() {
   if (enableWifi) {
     webServer.end();
     MDNSEnd();
-    mqttClient.disconnect();
+    Mqtt.disconnect();
     WiFi.disconnect();
   }
   esp_sleep_enable_timer_wakeup(1);
@@ -229,6 +227,14 @@ void loop() {
     preferences.end();
     softReset();
   }
+
+  if (runtime() - Timing.lastServiceCheck > Timing.serviceInterval) {
+    Timing.lastServiceCheck = runtime();
+    // Check if all the services work
+    if (enableWifi && WiFi.status() == WL_CONNECTED) {
+      if (enableMqtt && !Mqtt.isConnected()) Mqtt.connect();
+    }
+  }
   
   if (Tanklevel.isSetupRunning()) {
     // run the level setup
@@ -252,8 +258,8 @@ void loop() {
         events.send(String(val).c_str(), "level", runtime());
         if (enableDac) dacValue(val);
         if (enableBle) updateBleCharacteristic(val);
-        if (enableMqtt && mqttTopic.length() > 0) {
-          mqttClient.publish((mqttTopic + "/tanklevel").c_str(), 0, true, String(val).c_str());
+        if (enableMqtt && Mqtt.isReady()) {
+          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel").c_str(), 0, true, String(val).c_str());
         }
         Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getSensorMedianValue(true));
       } else {

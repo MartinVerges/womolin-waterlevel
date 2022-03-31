@@ -8,7 +8,7 @@
 **/
 
 #include <WiFi.h>
-#include "mqtt.h"
+#include "MQTTclient.h"
 #include <ESPmDNS.h>
 
 extern bool enableWifi;
@@ -28,7 +28,8 @@ void MDNSEnd() {
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   Serial.print("[WIFI] WiFi connected with IP address: ");
   Serial.println(WiFi.localIP());
-  if (enableMqtt) connectToMqtt();
+//  if (enableMqtt) connectToMqtt();
+//  else Serial.println("[MQTT] disabled, not starting!");
 }
 
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -36,6 +37,7 @@ void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+  //if (enableMqtt) MQTTclient();  
   Serial.println("[WIFI] Disconnected from WiFi access point with Reason:");
   Serial.println(info.disconnected.reason);
   Serial.println("Trying to Reconnect");
