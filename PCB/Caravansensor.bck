@@ -1,0 +1,14 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP HX711
+D 24 Bit ADC for weigh scales and load cells, Avia Semiconductor, SOP-16L
+K weigh scales load cells ADC
+$ENDCMP
+#
+$CMP MPX53
+D 0 to 50 kPa Differential and Gauge, uncompensated, Silicon pressure sensors
+K pressure sensor differential
+F https://www.farnell.com/datasheets/2291761.pdf
+$ENDCMP
+#
+#End Doc Library
