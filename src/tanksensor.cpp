@@ -158,11 +158,9 @@ void setup() {
       startWifiConfigPortal = true;
     }
     if (startWifiConfigPortal) {
-      String apName = "ESP_";
-      apName += String((uint32_t)ESP.getEfuseMac(), HEX);
-      apName.toUpperCase();
+      String apName = "ESP_" + String((uint32_t)ESP.getEfuseMac());
       Serial.printf("[WIFI] Starting configuration portal on AP SSID %s\n", apName.c_str());
-      wifiManager.setConfigPortalTimeout(0);
+      wifiManager.setConfigPortalTimeout(600);
       wifiManager.startConfigPortal(apName.c_str(), NULL);
       startWifiConfigPortal = false;
     } else {
