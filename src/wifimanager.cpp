@@ -78,9 +78,9 @@ bool WIFIMANAGER::writeToNVS() {
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       if (apList[i].apName.length() < 1) continue;
       sprintf(tmpKey, "apName%d", i);
-      preferences.putString(tmpKey, apList[i].apName.c_str());
+      preferences.putString(tmpKey, apList[i].apName);
       sprintf(tmpKey, "apPass%d", i);
-      preferences.putString(tmpKey, apList[i].apPass.c_str());
+      preferences.putString(tmpKey, apList[i].apPass);
     }
     preferences.end();
     return true;
@@ -110,6 +110,26 @@ bool WIFIMANAGER::addWifi(String apName, String apPass) {
   }
   Serial.println(F("[WIFI] No slot available to store SSID credentials"));
   return false; // max entries reached
+}
+
+bool WIFIMANAGER::delWifi(uint8_t apId) {
+  if (apId < WIFIMANAGER_MAX_APS) {
+    apList[apId].apName.clear();
+    apList[apId].apPass.clear();
+    writeToNVS();
+    return true;
+  }
+  return false;
+}
+
+bool WIFIMANAGER::delWifi(String apName) {
+  int num = 0;
+  for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
+    if (apList[i].apName == apName) {
+      if (delWifi(i)) num++;
+    }
+  }
+  return num > 0;
 }
 
 void WIFIMANAGER::loop() {
@@ -253,9 +273,50 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
         request->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
       } else request->send(200, "application/json", "{\"message\":\"New AP added\"}");
     }
+    else if (request->url() == (apiPrefix + "/remove/id") && request->method() == HTTP_POST) {
+      DynamicJsonDocument jsonBuffer(128);
+      deserializeJson(jsonBuffer, (const char*)data);
+
+      if (!jsonBuffer["id"].is<uint8_t>() || jsonBuffer["id"].as<uint8_t>() >= WIFIMANAGER_MAX_APS) {
+        request->send(422, "text/plain", "Invalid data");
+        return;
+      }
+      if (!delWifi(jsonBuffer["id"].as<uint8_t>())) {
+        request->send(500, "application/json", "{\"message\":\"Unable to delete entry\"}");
+      } else request->send(200, "application/json", "{\"message\":\"AP deleted\"}");
+    }
+    else if (request->url() == (apiPrefix + "/remove/apName") && request->method() == HTTP_POST) {
+      DynamicJsonDocument jsonBuffer(128);
+      deserializeJson(jsonBuffer, (const char*)data);
+
+      if (!jsonBuffer["apName"].is<String>()) {
+        request->send(422, "text/plain", "Invalid data");
+        return;
+      }
+      if (!delWifi(jsonBuffer["apName"].as<String>())) {
+        request->send(500, "application/json", "{\"message\":\"Unable to delete entry\"}");
+      } else request->send(200, "application/json", "{\"message\":\"AP deleted\"}");
+    }
   });
 
-  webServer->on((apiPrefix + "/list").c_str(), HTTP_GET, [&](AsyncWebServerRequest *request) {
+  webServer->on((apiPrefix + "/configlist").c_str(), HTTP_GET, [&](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument jsonDoc(4096);
+
+    for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
+      if (apList[i].apName.length() > 0) {
+        jsonDoc[(String("apName")+i)] = apList[i].apName;
+      }
+    }
+
+    serializeJson(jsonDoc, response, 2048);
+
+    response->setCode(200);
+    response->setContentLength(measureJson(jsonDoc));
+    request->send(response);
+  });
+
+  webServer->on((apiPrefix + "/scan").c_str(), HTTP_GET, [&](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument jsonDoc(4096);
     JsonArray wifiList = jsonDoc.createNestedArray("wifiList");

@@ -9,7 +9,10 @@
 #ifndef WIFIMANAGER_h
 #define WIFIMANAGER_h
 
+#ifndef WIFIMANAGER_MAX_APS 
+// Valid range is uint8_t
 #define WIFIMANAGER_MAX_APS 4
+#endif
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -56,6 +59,12 @@ class WIFIMANAGER {
 
     // Add another AP to the list of known WIFIs
     bool addWifi(String apName, String apPass);
+
+    // Delete Wifi from apList by ID
+    bool delWifi(uint8_t apId);
+
+    // Delete Wifi from apList by Name
+    bool delWifi(String apName);
 
     // Try each known SSID and connect until none is left or one is connected.
     bool tryConnect();
