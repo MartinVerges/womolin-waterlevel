@@ -15,6 +15,8 @@
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
 
+void wifiTask(void* param);
+
 class WIFIMANAGER {
   private:
     AsyncWebServer * webServer;        // The Webserver to register routes on
@@ -43,20 +45,23 @@ class WIFIMANAGER {
     WIFIMANAGER(const char * ns = "wifimanager");
     virtual ~WIFIMANAGER();
 
+    // If no known Wifi can't be found, create an AP but retry regulary
+    void fallbackToSoftAp(bool state = true);
+
     // Call to run the Task 
-    void start();
+    void startBackgroundTask();
 
     // Attach a webserver and register api routes
     void attachWebServer(AsyncWebServer * srv);
 
     // Add another AP to the list of known WIFIs
-    bool addAp(String apName, String apPass);
+    bool addWifi(String apName, String apPass);
 
     // Try each known SSID and connect until none is left or one is connected.
     bool tryConnect();
 
     // Start a SoftAP, called if no wifi can be connected
-    bool runAP(String apName = "");
+    bool runSoftAP(String apName = "");
 
     // Run in the loop to maintain state
     void loop();

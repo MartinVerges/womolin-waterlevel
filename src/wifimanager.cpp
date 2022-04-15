@@ -26,7 +26,7 @@ void wifiTask(void* param) {
   }
 }
 
-void WIFIMANAGER::start() {
+void WIFIMANAGER::startBackgroundTask() {
   loadFromNVS();
   xTaskCreatePinnedToCore(
     wifiTask,
@@ -48,16 +48,20 @@ WIFIMANAGER::~WIFIMANAGER() {
   // FIXME: get rid of the registered Webserver AsyncCallbackWebHandlers
 }
 
+void WIFIMANAGER::fallbackToSoftAp(bool state) {
+  autoCreateAP = state;
+}
+
 bool WIFIMANAGER::loadFromNVS() {
   if (preferences.begin(NVS, true)) {
     char tmpKey[10] = { 0 };
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       sprintf(tmpKey, "apName%d", i);
-      String apName = preferences.getString(tmpKey, "");
+      String apName = preferences.getString(tmpKey);
       if (apName.length() > 0) {
         sprintf(tmpKey, "apPass%d", i);
-        String apPass = preferences.getString(tmpKey, "");
-        addAp(apName, apPass);
+        String apPass = preferences.getString(tmpKey);
+        addWifi(apName, apPass);
       }
     }
     preferences.end();
@@ -85,7 +89,7 @@ bool WIFIMANAGER::writeToNVS() {
   return false;
 }
 
-bool WIFIMANAGER::addAp(String apName, String apPass) {
+bool WIFIMANAGER::addWifi(String apName, String apPass) {
   if(apName.length() < 1 || apName.length() > 31) {
       Serial.println(F("[WIFI] No SSID given or ssid too long"));
       return false;
@@ -141,7 +145,10 @@ void WIFIMANAGER::loop() {
     }
     Serial.println(F("[WIFI] currently not connected!"));
     // let's try to connect to some WiFi in Range
-    if (!tryConnect()) runAP();
+    if (!tryConnect()) {
+      if (autoCreateAP) runSoftAP();
+      else Serial.println(F("[WIFI] Auto creation of SoftAP is disabled, no starting AP!"));
+    }
   }
 }
 
@@ -211,7 +218,7 @@ bool WIFIMANAGER::tryConnect() {
   return false;
 }
 
-bool WIFIMANAGER::runAP(String apName) {
+bool WIFIMANAGER::runSoftAP(String apName) {
   startApTime = millis();
 
   if (apName == "") apName = "ESP_" + String((uint32_t)ESP.getEfuseMac());
@@ -242,7 +249,7 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
         request->send(422, "text/plain", "Invalid data");
         return;
       }
-      if (!addAp(jsonBuffer["apName"].as<String>(), jsonBuffer["apPass"].as<String>())) {
+      if (!addWifi(jsonBuffer["apName"].as<String>(), jsonBuffer["apPass"].as<String>())) {
         request->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
       } else request->send(200, "application/json", "{\"message\":\"New AP added\"}");
     }

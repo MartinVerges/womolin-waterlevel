@@ -143,7 +143,7 @@ void setup() {
     Serial.println(F("[WIFI] Not starting WiFi!"));
   } else {
     // Load well known Wifi AP credentials from NVS
-    WifiManager.start();
+    WifiManager.startBackgroundTask();
     WifiManager.attachWebServer(&webServer);
 
     WiFiRegisterEvents(WiFi);
@@ -190,7 +190,7 @@ void loop() {
       softReset();
     } else {
       // bringt up a SoftAP instead of beeing a client
-      WifiManager.runAP();
+      WifiManager.runSoftAP();
     }
   }
 
