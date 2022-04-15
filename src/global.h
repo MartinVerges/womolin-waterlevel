@@ -16,6 +16,7 @@
 #define SPIFFS LITTLEFS 
 #include <LITTLEFS.h>
 #include "MQTTclient.h"
+#include "wifimanager.h"
 
 #define GPIO_HX711_DOUT 33                  // GPIO pin to use for DT or DOUT
 #define GPIO_HX711_SCK 32                   // GPIO pin to use for SCK
@@ -23,10 +24,6 @@
 #define NVS_NAMESPACE "tanksensor"          // Preferences.h namespace to store settings
 
 RTC_DATA_ATTR struct timing_t {
-  // Wifi interval in loop()
-  uint64_t lastWifiCheck = 0;               // last millis() from WifiCheck
-  const unsigned int wifiInterval = 30000;  // Interval in ms to execute code
-
   // Check Services like MQTT, ...
   uint64_t lastServiceCheck = 0;               // last millis() from ServiceCheck
   const unsigned int serviceInterval = 10000;  // Interval in ms to execute code
@@ -40,10 +37,10 @@ RTC_DATA_ATTR struct timing_t {
   const unsigned int setupInterval = 15 * 60 * 1000 / 255;   // Interval in ms to execute code
 } Timing;
 
-RTC_DATA_ATTR bool startWifiConfigPortal = false; // Start the config portal on setup() (default set by wakeup funct.)
 RTC_DATA_ATTR uint64_t sleepTime = 0;             // Time that the esp32 slept
 
 TANKLEVEL Tanklevel;
+WIFIMANAGER WifiManager;
 
 struct Button {
   const gpio_num_t PIN;
@@ -59,16 +56,3 @@ AsyncEventSource events("/events");
 Preferences preferences;
 
 MQTTclient Mqtt;
-
-String getMacFromBT(String spacer = "") {
-  String output = "";
-  uint8_t mac[6];
-  esp_read_mac(mac, ESP_MAC_BT);
-  for (int i = 0; i < 6; i++) {
-    char m[3];
-    sprintf(m, "%02X", mac[i]);
-    output += m;
-    if (i < 5) output += spacer;
-  }
-  return output;
-}

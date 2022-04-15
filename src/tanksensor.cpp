@@ -25,7 +25,6 @@
 #include <AsyncElegantOTA.h>
 #include <AsyncTCP.h>
 #include <esp_wifi.h>
-#include <ESPAsync_WiFiManager.h>
 #include <WiFi.h>
 #include <Preferences.h>
 
@@ -120,7 +119,7 @@ void setup() {
     // This won't fix the problem, a check of the sensor log is required
     deepsleepForSeconds(5);
   }
-  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, String(NVS_NAMESPACE) + String("s1"));
+  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, (String(NVS_NAMESPACE) + "s1").c_str());
   if (!preferences.begin(NVS_NAMESPACE)) {
     preferences.clear();
   }
@@ -137,41 +136,22 @@ void setup() {
   enableBle = preferences.getBool("enableBle", true);
   enableDac = preferences.getBool("enableDac", true);
 
-  if (!Tanklevel.isConfigured()) {
-    // we need to bring up WiFi to provide a convenient setup routine
-    enableWifi = true;
-  }
+  // we need to bring up WiFi to provide a convenient setup routine
+  if (!Tanklevel.isConfigured()) enableWifi = true;
   
-  if (!enableWifi && !startWifiConfigPortal) {
+  if (!enableWifi) {
     Serial.println(F("[WIFI] Not starting WiFi!"));
   } else {
+    // Load well known Wifi AP credentials from NVS
+    WifiManager.start();
+    WifiManager.attachWebServer(&webServer);
+
     WiFiRegisterEvents(WiFi);
-
-    Serial.print(F("[WIFI] Starting Async_AutoConnect_ESP32_minimal on "));
-    Serial.println(ARDUINO_BOARD);
-    Serial.print(F("[WIFI] "));
-    Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
-
-    ESPAsync_WiFiManager wifiManager(&webServer, &dnsServer, hostName.c_str());
-    if (!startWifiConfigPortal && wifiManager.WiFi_SSID() == "") {
-      Serial.println(F("[WIFI] No AP credentials found, requesting Wifi configuration portal!"));
-      startWifiConfigPortal = true;
-    }
-    if (startWifiConfigPortal) {
-      String apName = "ESP_" + String((uint32_t)ESP.getEfuseMac());
-      Serial.printf("[WIFI] Starting configuration portal on AP SSID %s\n", apName.c_str());
-      wifiManager.setConfigPortalTimeout(600);
-      wifiManager.startConfigPortal(apName.c_str(), NULL);
-      startWifiConfigPortal = false;
-    } else {
-      wifiManager.autoConnect();
-    }
     APIRegisterRoutes();
     AsyncElegantOTA.begin(&webServer);
     webServer.begin();
     Serial.println(F("[WEB] HTTP server started"));
 
-    WiFi.setAutoReconnect(true);
     MDNSBegin(hostName);
   } // end wifi
 
@@ -181,9 +161,8 @@ void setup() {
   // Only enable Mqtt if Wifi is enabled as well
   if (enableWifi) {
     enableMqtt = preferences.getBool("enableMqtt", false);
-    if (enableMqtt) {
-      Mqtt.prepare();
-    } else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
+    if (enableMqtt) Mqtt.prepare();
+    else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
   }
 }
 
@@ -201,35 +180,24 @@ void softReset() {
 
 void loop() {
   // if WiFi is down, try reconnecting
-  if (enableWifi && runtime() - Timing.lastWifiCheck > Timing.wifiInterval) {
-    Timing.lastWifiCheck = runtime();
-    if (WiFi.getMode() == WIFI_MODE_AP) {
-      Serial.println(F("[WIFI] Something went wrong here, we have an AP but no config portal!"));
-      softReset();
-    }
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.printf("[WIFI][%" PRIu64 "ms] Reconnecting to WiFi...\n", runtime());
-      WiFi.reconnect();
-    }
-  }
   if (button1.pressed) {
     Serial.println(F("[EVENT] Button pressed!"));
     button1.pressed = false;
     if (!enableWifi) {
-      // if no wifi is currently running, first button press will start it up
+      // if no wifi is currently running we start it up on next boot
       preferences.putBool("enableWifi", true);
+      preferences.end();
+      softReset();
     } else {
-      // if wifi is enabled, we start the config portal on next reboot
-      startWifiConfigPortal = true;
+      // bringt up a SoftAP instead of beeing a client
+      WifiManager.runAP();
     }
-    preferences.end();
-    softReset();
   }
 
   if (runtime() - Timing.lastServiceCheck > Timing.serviceInterval) {
     Timing.lastServiceCheck = runtime();
     // Check if all the services work
-    if (enableWifi && WiFi.status() == WL_CONNECTED) {
+    if (enableWifi && WiFi.status() == WL_CONNECTED && WiFi.getMode() == WIFI_MODE_STA) {
       if (enableMqtt && !Mqtt.isConnected()) Mqtt.connect();
     }
   }

@@ -29,62 +29,6 @@ void APIRegisterRoutes() {
     ESP.restart();
   });
 
-  webServer.on("/api/wifi/list", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonDocument jsonDoc(2048);
-    JsonArray wifiList = jsonDoc.createNestedArray("wifiList");
-
-    int scanResult;
-    String ssid;
-    uint8_t encryptionType;
-    int32_t rssi;
-    uint8_t* bssid;
-    int32_t channel;
-
-    scanResult = WiFi.scanNetworks(false, true);
-    for (int8_t i = 0; i < scanResult; i++) {
-      WiFi.getNetworkInfo(i, ssid, encryptionType, rssi, bssid, channel);
-
-      JsonObject wifiNet = wifiList.createNestedObject();
-      wifiNet["ssid"] = ssid;
-      wifiNet["encryptionType"] = encryptionType;
-      wifiNet["rssi"] = String(rssi);
-      wifiNet["channel"] = String(channel);
-      yield();
-    }
-
-    serializeJson(jsonDoc, *response);
-
-    response->setCode(200);
-    response->setContentLength(measureJson(jsonDoc));
-    request->send(response);
-  });
-
-  webServer.on("/api/wifi/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonDocument jsonDoc(1024);
-
-    jsonDoc["ip"] = WiFi.localIP().toString();
-    jsonDoc["gw"] = WiFi.gatewayIP().toString();
-    jsonDoc["nm"] = WiFi.subnetMask().toString();
-
-    jsonDoc["hostname"] = WiFi.getHostname();
-    jsonDoc["signalStrengh"] = WiFi.RSSI();
-    
-    jsonDoc["chipModel"] = ESP.getChipModel();
-    jsonDoc["chipRevision"] = ESP.getChipRevision();
-    jsonDoc["chipCores"] = ESP.getChipCores();
-    
-    jsonDoc["getHeapSize"] = ESP.getHeapSize();
-    jsonDoc["freeHeap"] = ESP.getFreeHeap();
-
-    serializeJson(jsonDoc, *response);
-
-    response->setCode(200);
-    response->setContentLength(measureJson(jsonDoc));
-    request->send(response);
-  });
-
   webServer.on("/api/setup/start", HTTP_POST, [](AsyncWebServerRequest *request) {
     Tanklevel.setStartAsync();
     if (request->contentType() == "application/json") { 
@@ -251,16 +195,6 @@ void APIRegisterRoutes() {
 
   webServer.on("/api/esp/freq", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
-  });
-
-  webServer.on("/api/wifi/info", HTTP_GET, [](AsyncWebServerRequest *request) {
-      AsyncResponseStream *response = request->beginResponseStream("application/json");
-      DynamicJsonDocument json(1024);
-      json["status"] = "ok";
-      json["ssid"] = WiFi.SSID();
-      json["ip"] = WiFi.localIP().toString();
-      serializeJson(json, *response);
-      request->send(response);
   });
 
   webServer.on("/api/level/data", HTTP_GET, [](AsyncWebServerRequest *request) {

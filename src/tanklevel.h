@@ -22,7 +22,7 @@ class TANKLEVEL
         float LOWER_END = 0.020;                   // value increase to start recording (tank is empty)
         float UPPER_END = 0.980;                   // value limit to cutoff data (tank is full)
 
-        String NVS = "tanksensor";                 // NVS Storage to write and read values
+        char * NVS;                                // NVS Storage to write and read values
 
         struct config_t {
             bool setupDone = false;                // Configuration done or not yet initialized sensor
@@ -63,7 +63,7 @@ class TANKLEVEL
 		virtual ~TANKLEVEL();
 
         // Initialize the Webserver
-		void begin(uint8_t dout, uint8_t pd_sck, String nvs);
+		void begin(uint8_t dout, uint8_t pd_sck, const char * ns = "tanksensor");
 
         // Configure uper and lower cutoff values for the setup (drop bad readings)
         void setLimits(float lower_end, float upper_end);

@@ -37,7 +37,7 @@ uint64_t TANKLEVEL::runtime() {
 }
 
 bool TANKLEVEL::writeToNVS() {
-  if (preferences.begin(NVS.c_str(), false)) {
+  if (preferences.begin(NVS, false)) {
     preferences.clear();
     preferences.putBool("setupDone", true);
     for (uint8_t i = 0; i <= 100; i++) {
@@ -52,12 +52,12 @@ bool TANKLEVEL::writeToNVS() {
 }
 
 bool TANKLEVEL::writeSingleEntrytoNVS(uint8_t i, int value) {
-  if (i == 255 && preferences.begin(NVS.c_str(), false)) {
+  if (i == 255 && preferences.begin(NVS, false)) {
     preferences.putBool("setupDone", value > 0);
     preferences.end();
     return true;
   } else if (i < 0 or i > 100) return false;
-  if (preferences.begin(NVS.c_str(), false)) {
+  if (preferences.begin(NVS, false)) {
     preferences.putInt(String("val" + String(i)).c_str(), value);
     preferences.end();
     return true;
@@ -71,11 +71,11 @@ int TANKLEVEL::getLevelData(int perc) {
   } else return -1;
 }
 
-void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, String nvs) {
+void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, const char * ns) {
   hx711.begin(dout, pd_sck, 32);
-  NVS = nvs;
+  NVS = (char *)ns;
 
-  if (!preferences.begin(NVS.c_str(), false)) {
+  if (!preferences.begin(NVS, false)) {
     Serial.println("Error opening NVS Namespace, giving up...");
   } else {
     levelConfig.setupDone = preferences.getBool("setupDone", false);

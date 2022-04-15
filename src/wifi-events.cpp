@@ -40,8 +40,6 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
   //if (enableMqtt) MQTTclient();  
   Serial.println("[WIFI] Disconnected from WiFi access point with Reason:");
   Serial.println(info.disconnected.reason);
-  Serial.println("Trying to Reconnect");
-  WiFi.reconnect();
 }
 
 void WiFiApStarted(WiFiEvent_t event, WiFiEventInfo_t info) {
