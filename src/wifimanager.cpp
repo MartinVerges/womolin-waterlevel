@@ -301,11 +301,15 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
 
   webServer->on((apiPrefix + "/configlist").c_str(), HTTP_GET, [&](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonDocument jsonDoc(4096);
+    DynamicJsonDocument jsonDoc(2048);
+    JsonArray wifiList = jsonDoc.createNestedArray();
 
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       if (apList[i].apName.length() > 0) {
-        jsonDoc[(String("apName")+i)] = apList[i].apName;
+        JsonObject wifiNet = wifiList.createNestedObject();
+        wifiNet["id"] = i;
+        wifiNet["apName"] = apList[i].apName;
+        wifiNet["apPass"] = apList[i].apPass.length() > 0 ? true : false;
       }
     }
 
@@ -319,7 +323,7 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
   webServer->on((apiPrefix + "/scan").c_str(), HTTP_GET, [&](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument jsonDoc(4096);
-    JsonArray wifiList = jsonDoc.createNestedArray("wifiList");
+    JsonArray wifiList = jsonDoc.createNestedArray();
 
     int scanResult;
     String ssid;
