@@ -41,6 +41,7 @@ RTC_DATA_ATTR uint64_t sleepTime = 0;       // Time that the esp32 slept
 
 TANKLEVEL Tanklevel;
 WIFIMANAGER WifiManager;
+bool enableWifi = true;                     // Enable Wifi, disable to reduce power consumtion, stored in NVS
 
 struct Button {
   const gpio_num_t PIN;
@@ -56,5 +57,3 @@ AsyncEventSource events("/events");
 Preferences preferences;
 
 MQTTclient Mqtt;
-
-bool enableWifi = true;                     // Enable Wifi, disable to reduce power consumtion, stored in NVS

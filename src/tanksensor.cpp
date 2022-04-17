@@ -199,7 +199,7 @@ void loop() {
   if (runtime() - Timing.lastServiceCheck > Timing.serviceInterval) {
     Timing.lastServiceCheck = runtime();
     // Check if all the services work
-    if (enableWifi && WiFi.status() == WL_CONNECTED && WiFi.getMode() == WIFI_MODE_STA) {
+    if (enableWifi && WiFi.status() == WL_CONNECTED && WiFi.getMode() & WIFI_MODE_STA) {
       if (enableMqtt && !Mqtt.isConnected()) Mqtt.connect();
     }
   }
