@@ -87,8 +87,14 @@ class WIFIMANAGER {
     // Start a SoftAP, called if no wifi can be connected
     bool runSoftAP(String apName = "");
 
-    // Stop the SoftAP
+    // Disconnect/Stop SoftAP Mode
     void stopSoftAp();
+
+    // Disconnect/Stop STA Mode
+    void stopClient();
+
+    // Disconnect/Stop SoftAP and STA Mode. Optionally end the task loop as well.
+    void stopWifi(bool killTask = false);
 
     // Run in the loop to maintain state
     void loop();

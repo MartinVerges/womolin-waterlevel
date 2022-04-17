@@ -297,7 +297,7 @@ bool WIFIMANAGER::tryConnect() {
         Serial.println(F("[WIFI] Connecting failed: Unknown reason"));
         break;
       default:
-        Serial.printf("[WIFI] Connecting Failed (Status: %d).", status);
+        Serial.printf("[WIFI] Connecting Failed (Status: %d).\n", status);
         break;
     }
   }
@@ -325,6 +325,16 @@ bool WIFIMANAGER::runSoftAP(String apName) {
 
 void WIFIMANAGER::stopSoftAp() {
   WiFi.softAPdisconnect();
+}
+
+void WIFIMANAGER::stopClient() {
+  WiFi.disconnect();
+}
+
+void WIFIMANAGER::stopWifi(bool killTask) {
+  if (killTask) vTaskDelete(WifiCheckTask);
+  stopSoftAp();
+  stopClient();
 }
 
 void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {

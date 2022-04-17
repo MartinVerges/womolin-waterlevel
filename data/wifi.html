@@ -107,7 +107,7 @@
       </div>
       <div id="listnetworks">
         <details>
-          <summary><label>List of known Wifi networks</label></summary>
+          <summary><label>List of known Wifi networks <button id="refreshconfiglist">refresh</button></label></summary>
           <ul id="knownnetworks">
             <li>loading ...</li>
           </ul>
@@ -130,6 +130,33 @@
     </footer>
     <script src="js/jquery-3.6.0.min.js"></script>
     <script>
+
+      function updateWifiConfig() {
+        $.ajax("/api/wifi/configlist", {
+          type : 'GET',
+          dataType : "json",
+          contentType : 'application/json',
+          success : function(data, status, jqXHR) { // success callback
+            $("#knownnetworks").empty();
+
+            data.forEach((element, index) => {
+              $("#knownnetworks").append(
+                $("<li></li>")
+                  .text("ID = " + element.id + " | " + element.apName + " ")
+                  .append(element.apPass == false ? "" : "&#128272;")
+                  .prepend($("<button>delete</button>")
+                    .attr("data-id", element.id)
+                  )
+              );
+            });
+          },
+          error : errorFunGetData,
+          fail : errorFunGetData
+        });
+      }
+      updateWifiConfig();
+
+      $('#refreshconfiglist').click(updateWifiConfig);
       $('#networklist').on('click','li',function(){
         $("#apName").val($(this).attr("data-ssid"));
       });
@@ -142,6 +169,7 @@
             data : JSON.stringify({ id: parseInt($(element).attr("data-id")) }),
             contentType : 'application/json',
             success : function(data, status, jqXHR) { // success callback
+              updateWifiConfig();
               $("#modaltitel").html("Success");
               $("#modaltext").html(data.message);
               window.location.href='#modal'
@@ -160,28 +188,6 @@
         $("#message #messageModalContent").html("Failed to get data");
         window.location.href='#modal'
       }
-
-      $.ajax("/api/wifi/configlist", {
-        type : 'GET',
-        dataType : "json",
-        contentType : 'application/json',
-        success : function(data, status, jqXHR) { // success callback
-          $("#knownnetworks").empty();
-
-          data.forEach((element, index) => {
-            $("#knownnetworks").append(
-              $("<li></li>")
-                .text("ID = " + element.id + " | " + element.apName + " ")
-                .append(element.apPass == false ? "" : "&#128272;")
-                .prepend($("<button>delete</button>")
-                  .attr("data-id", element.id)
-                )
-            );
-          });
-        },
-        error : errorFunGetData,
-        fail : errorFunGetData
-      });     
 
       $.ajax("/api/wifi/scan", {
         type : 'GET',

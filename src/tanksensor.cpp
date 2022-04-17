@@ -105,6 +105,25 @@ void MDNSBegin(String hostname) {
   MDNS.addService("http", "tcp", 80);
 }
 
+void initWifiAndServices() {
+  Serial.println(F("[DEBUG] calling initWifiAndServices()"));
+
+  // Load well known Wifi AP credentials from NVS
+  WifiManager.startBackgroundTask();
+  WifiManager.attachWebServer(&webServer);
+  WifiManager.fallbackToSoftAp(preferences.getBool("enableSoftAp", true));
+
+  APIRegisterRoutes();
+  AsyncElegantOTA.begin(&webServer);
+  webServer.begin();
+  Serial.println(F("[WEB] HTTP server started"));
+
+  MDNSBegin(hostName);
+
+  if (enableMqtt) Mqtt.prepare();
+  else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -140,35 +159,16 @@ void setup() {
   enableWifi = preferences.getBool("enableWifi", true);
   enableBle = preferences.getBool("enableBle", true);
   enableDac = preferences.getBool("enableDac", true);
+  enableMqtt = preferences.getBool("enableMqtt", false);
 
   // we need to bring up WiFi to provide a convenient setup routine
   if (!Tanklevel.isConfigured()) enableWifi = true;
   
-  if (!enableWifi) {
-    Serial.println(F("[WIFI] Not starting WiFi!"));
-  } else {
-    // Load well known Wifi AP credentials from NVS
-    WifiManager.startBackgroundTask();
-    WifiManager.attachWebServer(&webServer);
-    WifiManager.fallbackToSoftAp(preferences.getBool("enableSoftAp", true));
-  
-    APIRegisterRoutes();
-    AsyncElegantOTA.begin(&webServer);
-    webServer.begin();
-    Serial.println(F("[WEB] HTTP server started"));
-
-    MDNSBegin(hostName);
-  } // end wifi
+  if (enableWifi) initWifiAndServices();
+  else Serial.println(F("[WIFI] Not starting WiFi!"));
 
   if (enableBle) createBleServer(hostName);
   else Serial.println(F("[BLE] Bluetooth low energy is disabled."));
-
-  // Only enable Mqtt if Wifi is enabled as well
-  if (enableWifi) {
-    enableMqtt = preferences.getBool("enableMqtt", false);
-    if (enableMqtt) Mqtt.prepare();
-    else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
-  }
 }
 
 // Soft reset the ESP to start with setup() again, but without loosing RTC_DATA as it would be with ESP.reset()
@@ -177,7 +177,7 @@ void softReset() {
     webServer.end();
     MDNS.end();
     Mqtt.disconnect();
-    WiFi.disconnect();
+    WifiManager.stopWifi();
   }
   esp_sleep_enable_timer_wakeup(1);
   esp_deep_sleep_start();
@@ -188,14 +188,11 @@ void loop() {
   if (button1.pressed) {
     Serial.println(F("[EVENT] Button pressed!"));
     button1.pressed = false;
-    if (!enableWifi) {
-      // if no wifi is currently running we start it up on next boot
-      preferences.putBool("enableWifi", true);
-      preferences.end();
-      softReset();
-    } else {
+    if (enableWifi) {
       // bringt up a SoftAP instead of beeing a client
       WifiManager.runSoftAP();
+    } else {
+      initWifiAndServices();
     }
   }
 
