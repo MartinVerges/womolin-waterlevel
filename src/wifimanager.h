@@ -34,12 +34,18 @@ class WIFIMANAGER {
     };
     apCredentials_t apList[WIFIMANAGER_MAX_APS];  // Stored AP list
 
-    bool autoCreateAP = true;          // Create an AP for configuration if no other connection is available
+    uint8_t configuredSSIDs = 0;       // Number of stored SSIDs in the NVS
+
+    bool softApRunning = false;        // Due to lack of functions, we have to remember if the AP is already running...
+    bool createFallbackAP = true;      // Create an AP for configuration if no other connection is available
 
     uint64_t lastWifiCheck = 0;        // Time of last Wifi health check
     uint32_t intervalWifiCheck = 1000; // Interval of the Wifi health checks
     uint64_t startApTime = 0;          // Time when the AP was started
     uint32_t timeoutApMillis = 300000; // Timeout of an AP when no client is connected, if timeout reached rescan, tryconnect or createAP
+
+    // Wipe the apList credentials
+    void clearApList();
 
   public:
     // We let the loop run as as Task
@@ -51,6 +57,9 @@ class WIFIMANAGER {
     // If no known Wifi can't be found, create an AP but retry regulary
     void fallbackToSoftAp(bool state = true);
 
+    // Get the current fallback state
+    bool getFallbackState();
+
     // Call to run the Task 
     void startBackgroundTask();
 
@@ -58,7 +67,7 @@ class WIFIMANAGER {
     void attachWebServer(AsyncWebServer * srv);
 
     // Add another AP to the list of known WIFIs
-    bool addWifi(String apName, String apPass);
+    bool addWifi(String apName, String apPass, bool updateNVS = true);
 
     // Delete Wifi from apList by ID
     bool delWifi(uint8_t apId);
@@ -69,8 +78,14 @@ class WIFIMANAGER {
     // Try each known SSID and connect until none is left or one is connected.
     bool tryConnect();
 
+    // Check if a SSID is stored in the config
+    bool configAvailable();
+
     // Start a SoftAP, called if no wifi can be connected
     bool runSoftAP(String apName = "");
+
+    // Stop the SoftAP
+    void stopSoftAp();
 
     // Run in the loop to maintain state
     void loop();
@@ -81,6 +96,5 @@ class WIFIMANAGER {
     // Load AP Settings from NVS it known apList
     bool loadFromNVS();
 };
-
 
 #endif

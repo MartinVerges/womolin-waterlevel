@@ -6,20 +6,22 @@
  *
 **/
 #include "wifimanager.h"
-
-#include <AsyncJson.h>
-#include <ArduinoJson.h>
+#include "AsyncJson.h"
+#include "ArduinoJson.h"
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 #include <Preferences.h>
 
 void wifiTask(void* param) {
-  delay(1000); // wait a short time until everything is setup before executing the loop forever
+  yield();
+  delay(500); // wait a short time until everything is setup before executing the loop forever
+  yield();
 
-  const TickType_t xDelay = 100 / portTICK_PERIOD_MS;
+  const TickType_t xDelay = 10000 / portTICK_PERIOD_MS;
   WIFIMANAGER * wifimanager = (WIFIMANAGER *) param;
 
   for(;;) {
+    yield();
     wifimanager->loop();
     yield();
     vTaskDelay(xDelay);
@@ -28,40 +30,77 @@ void wifiTask(void* param) {
 
 void WIFIMANAGER::startBackgroundTask() {
   loadFromNVS();
+  tryConnect();
   xTaskCreatePinnedToCore(
     wifiTask,
     "WifiManager",
-    2000,   /* Stack size in words */
-    this,   /* Task input parameter */
-    0,      /* Priority of the task */
-    &WifiCheckTask,  /* Task handle. */
-    0       /* Core where the task should run */
+    4000,   // Stack size in words
+    this,   // Task input parameter
+    0,      // Priority of the task
+    &WifiCheckTask,  // Task handle.
+    0       // Core where the task should run
   );
 }
 
 WIFIMANAGER::WIFIMANAGER(const char * ns) {
   NVS = (char *)ns;
-  WiFi.setAutoReconnect(true);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.disconnect();
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+
+  // AP on/off
+  WiFi.onEvent([&](WiFiEvent_t event, WiFiEventInfo_t info) {
+    Serial.println(F("[WIFI] AP mode started!"));
+    softApRunning = true;
+  }, SYSTEM_EVENT_AP_START);
+  WiFi.onEvent([&](WiFiEvent_t event, WiFiEventInfo_t info) {
+    Serial.println(F("[WIFI] AP mode stopped!"));
+    softApRunning = false;
+  }, SYSTEM_EVENT_AP_STOP);
+  // AP client join/leave
+  WiFi.onEvent([&](WiFiEvent_t event, WiFiEventInfo_t info) {
+    Serial.println(F("[WIFI] New client connected to softAP!"));
+  }, SYSTEM_EVENT_AP_STACONNECTED);
+  WiFi.onEvent([&](WiFiEvent_t event, WiFiEventInfo_t info) {
+    Serial.println(F("[WIFI] Client disconnected from softAP!"));
+  }, SYSTEM_EVENT_AP_STADISCONNECTED);
 }
+
 WIFIMANAGER::~WIFIMANAGER() {
   vTaskDelete(WifiCheckTask);
   // FIXME: get rid of the registered Webserver AsyncCallbackWebHandlers
 }
 
 void WIFIMANAGER::fallbackToSoftAp(bool state) {
-  autoCreateAP = state;
+  createFallbackAP = state;
+}
+
+bool WIFIMANAGER::getFallbackState() {
+  return createFallbackAP;
+}
+
+void WIFIMANAGER::clearApList() {
+  for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
+    apList[i].apName = "";
+    apList[i].apPass = "";
+  }
 }
 
 bool WIFIMANAGER::loadFromNVS() {
+  configuredSSIDs = 0;
   if (preferences.begin(NVS, true)) {
+    clearApList();
     char tmpKey[10] = { 0 };
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       sprintf(tmpKey, "apName%d", i);
-      String apName = preferences.getString(tmpKey);
+      String apName = preferences.getString(tmpKey, "");
       if (apName.length() > 0) {
         sprintf(tmpKey, "apPass%d", i);
         String apPass = preferences.getString(tmpKey);
-        addWifi(apName, apPass);
+        Serial.printf("[WIFI] Load SSID '%s' to %d. slot.\n", apName.c_str(), i);
+        apList[i].apName = apName;
+        apList[i].apPass = apPass;
+        configuredSSIDs++;
       }
     }
     preferences.end();
@@ -76,7 +115,7 @@ bool WIFIMANAGER::writeToNVS() {
     preferences.clear();
     char tmpKey[10] = { 0 };
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
-      if (apList[i].apName.length() < 1) continue;
+      if (!apList[i].apName.length()) continue;
       sprintf(tmpKey, "apName%d", i);
       preferences.putString(tmpKey, apList[i].apName);
       sprintf(tmpKey, "apPass%d", i);
@@ -89,7 +128,7 @@ bool WIFIMANAGER::writeToNVS() {
   return false;
 }
 
-bool WIFIMANAGER::addWifi(String apName, String apPass) {
+bool WIFIMANAGER::addWifi(String apName, String apPass, bool updateNVS) {
   if(apName.length() < 1 || apName.length() > 31) {
       Serial.println(F("[WIFI] No SSID given or ssid too long"));
       return false;
@@ -102,10 +141,11 @@ bool WIFIMANAGER::addWifi(String apName, String apPass) {
 
   for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
     if (apList[i].apName == "") {
-      Serial.println(F("[WIFI] Found unused slot to store the new SSID credentials"));
+      Serial.printf("[WIFI] Found unused slot Nr. %d to store the new SSID '%s' credentials.\n", i, apName.c_str());
       apList[i].apName = apName;
       apList[i].apPass = apPass;
-      return true;
+      if (updateNVS) return writeToNVS();
+      else return true;
     }
   }
   Serial.println(F("[WIFI] No slot available to store SSID credentials"));
@@ -116,8 +156,7 @@ bool WIFIMANAGER::delWifi(uint8_t apId) {
   if (apId < WIFIMANAGER_MAX_APS) {
     apList[apId].apName.clear();
     apList[apId].apPass.clear();
-    writeToNVS();
-    return true;
+    return writeToNVS();
   }
   return false;
 }
@@ -132,48 +171,52 @@ bool WIFIMANAGER::delWifi(String apName) {
   return num > 0;
 }
 
+bool WIFIMANAGER::configAvailable() {
+    return configuredSSIDs > 0;
+}
+
 void WIFIMANAGER::loop() {
   if (millis() - lastWifiCheck < intervalWifiCheck) return;
   lastWifiCheck = millis();
 
-  if (WiFi.status() == WL_NO_SHIELD) {
-    Serial.println(F("[WIFI] Shield not present, unable to run wifi!"));
-    return;
-  }
-
-  if(WiFi.status() == WL_CONNECTED && WiFi.getMode() == WIFI_MODE_STA) {
+  if(WiFi.status() == WL_CONNECTED) {
     // Check if we are connected to a well known SSID
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       if (WiFi.SSID() == apList[i].apName) {
-        Serial.print(F("[WIFI] Connected to the well known AP: "));
+        Serial.print(F("[WIFI] Connected to the known SSID. Connected to: "));
         Serial.println(apList[i].apName);
         return;
       }
     }
     // looks like we are connected to something else, strange!?
-    Serial.println(F("[WIFI] We are connected to an unknown AP ignoring."));
-
+    Serial.print(F("[WIFI] We are connected to an unknown SSID ignoring. Connected to: "));
+    Serial.println(WiFi.SSID());
   } else {
-    if (WiFi.getMode() == WIFI_MODE_AP && millis() - startApTime > timeoutApMillis) {
-      if (WiFi.softAPgetStationNum() > 0) {
-        Serial.println(F("[WIFI] Running in AP mode with client connected"));
-        startApTime = millis(); // reset timeout as someone is connected
-        return;
-      }
-      Serial.println(F("[WIFI] Running in AP mode but timeout reached. Closing AP!"));
-      WiFi.softAPdisconnect();
-    }
-    Serial.println(F("[WIFI] currently not connected!"));
     // let's try to connect to some WiFi in Range
     if (!tryConnect()) {
-      if (autoCreateAP) runSoftAP();
+      if (createFallbackAP) runSoftAP();
       else Serial.println(F("[WIFI] Auto creation of SoftAP is disabled, no starting AP!"));
     }
+  }
+  
+  if (millis() - startApTime > timeoutApMillis) {
+    if (WiFi.softAPgetStationNum() > 0) {
+      Serial.println(F("[WIFI] Running in AP mode with client connected"));
+      startApTime = millis(); // reset timeout as someone is connected
+      return;
+    }
+    Serial.println(F("[WIFI] Running in AP mode but timeout reached. Closing AP!"));
+    stopSoftAp();
   }
 }
 
 bool WIFIMANAGER::tryConnect() {
-  WiFi.disconnect();  // make sure we are not connected
+  if (!configAvailable()) {
+    Serial.println(F("[WIFI] No SSIDs configured in NVS, unable to connect."));
+    if (createFallbackAP) runSoftAP();
+    return false;
+  }
+
   int8_t scanResult = WiFi.scanNetworks(false, true);
   if(scanResult <= 0) {
     Serial.println(F("[WIFI] Unable to find WIFI networks in range to this device!"));
@@ -203,10 +246,10 @@ bool WIFIMANAGER::tryConnect() {
   }
   WiFi.scanDelete();
   if (choosenAp == INT_MIN) {
-    Serial.println(F("[WIFI] Unable to find an AP to connect to!"));
+    Serial.println(F("[WIFI] Unable to find an SSID to connect to!"));
     return false;
   } else {
-    Serial.println(F("[WIFI] Found a signal to a known AP, trying to connect to..."));
+    Serial.println(F("[WIFI] Found a signal to a known SSID, trying to connect to..."));
 
     WiFi.begin(apList[choosenAp].apName.c_str(), apList[choosenAp].apPass.c_str());
     wl_status_t status = WiFi.status();
@@ -222,6 +265,8 @@ bool WIFIMANAGER::tryConnect() {
         Serial.println(F("[WIFI] Connection successful."));
         Serial.printf("[WIFI] SSID   : %s\n", WiFi.SSID().c_str());
         Serial.printf("[WIFI] IP     : %s\n", WiFi.localIP().toString().c_str());
+
+        stopSoftAp();
         return true;
         break;
       case WL_NO_SSID_AVAIL:
@@ -239,12 +284,12 @@ bool WIFIMANAGER::tryConnect() {
 }
 
 bool WIFIMANAGER::runSoftAP(String apName) {
+  if (softApRunning) return true;
   startApTime = millis();
 
   if (apName == "") apName = "ESP_" + String((uint32_t)ESP.getEfuseMac());
   Serial.printf("[WIFI] Starting configuration portal on AP SSID %s\n", apName.c_str());
 
-  WiFi.disconnect(); // make sure we are not connected to something
   bool state = WiFi.softAP(apName.c_str());
   if (state) {
     IPAddress IP = WiFi.softAPIP();
@@ -257,63 +302,72 @@ bool WIFIMANAGER::runSoftAP(String apName) {
   }
 }
 
+void WIFIMANAGER::stopSoftAp() {
+  WiFi.softAPdisconnect();
+}
+
 void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
   webServer = srv; // store it in the class for later use
 
-  webServer->onRequestBody([&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
-    if (request->url() == (apiPrefix + "/add") && request->method() == HTTP_POST) {
-      DynamicJsonDocument jsonBuffer(128);
-      deserializeJson(jsonBuffer, (const char*)data);
+  webServer->on((apiPrefix + "/add").c_str(), HTTP_POST, [&](AsyncWebServerRequest * request){}, NULL,
+    [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
 
-      if (!jsonBuffer["apName"].is<String>() || !jsonBuffer["apPass"].is<String>()) {
-        request->send(422, "text/plain", "Invalid data");
-        return;
-      }
-      if (!addWifi(jsonBuffer["apName"].as<String>(), jsonBuffer["apPass"].as<String>())) {
-        request->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
-      } else request->send(200, "application/json", "{\"message\":\"New AP added\"}");
-    }
-    else if (request->url() == (apiPrefix + "/remove/id") && request->method() == HTTP_POST) {
-      DynamicJsonDocument jsonBuffer(128);
-      deserializeJson(jsonBuffer, (const char*)data);
+    DynamicJsonDocument jsonBuffer(256);
+    deserializeJson(jsonBuffer, (const char*)data);
 
-      if (!jsonBuffer["id"].is<uint8_t>() || jsonBuffer["id"].as<uint8_t>() >= WIFIMANAGER_MAX_APS) {
-        request->send(422, "text/plain", "Invalid data");
-        return;
-      }
-      if (!delWifi(jsonBuffer["id"].as<uint8_t>())) {
-        request->send(500, "application/json", "{\"message\":\"Unable to delete entry\"}");
-      } else request->send(200, "application/json", "{\"message\":\"AP deleted\"}");
+    if (!jsonBuffer["apName"].is<String>() || !jsonBuffer["apPass"].is<String>()) {
+      request->send(422, "text/plain", "Invalid data");
+      return;
     }
-    else if (request->url() == (apiPrefix + "/remove/apName") && request->method() == HTTP_POST) {
-      DynamicJsonDocument jsonBuffer(128);
-      deserializeJson(jsonBuffer, (const char*)data);
+    if (!addWifi(jsonBuffer["apName"].as<String>(), jsonBuffer["apPass"].as<String>())) {
+      request->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
+    } else request->send(200, "application/json", "{\"message\":\"New AP added\"}");
+  });
 
-      if (!jsonBuffer["apName"].is<String>()) {
-        request->send(422, "text/plain", "Invalid data");
-        return;
-      }
-      if (!delWifi(jsonBuffer["apName"].as<String>())) {
-        request->send(500, "application/json", "{\"message\":\"Unable to delete entry\"}");
-      } else request->send(200, "application/json", "{\"message\":\"AP deleted\"}");
+  webServer->on((apiPrefix + "/id").c_str(), HTTP_DELETE, [&](AsyncWebServerRequest * request){}, NULL,
+    [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+
+    DynamicJsonDocument jsonBuffer(128);
+    deserializeJson(jsonBuffer, (const char*)data);
+
+    if (!jsonBuffer["id"].is<uint8_t>() || jsonBuffer["id"].as<uint8_t>() >= WIFIMANAGER_MAX_APS) {
+      request->send(422, "text/plain", "Invalid data");
+      return;
     }
+    if (!delWifi(jsonBuffer["id"].as<uint8_t>())) {
+      request->send(500, "application/json", "{\"message\":\"Unable to delete entry\"}");
+    } else request->send(200, "application/json", "{\"message\":\"AP deleted\"}");
+  });
+
+  webServer->on((apiPrefix + "/apName").c_str(), HTTP_DELETE, [&](AsyncWebServerRequest * request){}, NULL,
+    [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+    
+    DynamicJsonDocument jsonBuffer(128);
+    deserializeJson(jsonBuffer, (const char*)data);
+
+    if (!jsonBuffer["apName"].is<String>()) {
+      request->send(422, "text/plain", "Invalid data");
+      return;
+    }
+    if (!delWifi(jsonBuffer["apName"].as<String>())) {
+      request->send(500, "application/json", "{\"message\":\"Unable to delete entry\"}");
+    } else request->send(200, "application/json", "{\"message\":\"AP deleted\"}");
   });
 
   webServer->on((apiPrefix + "/configlist").c_str(), HTTP_GET, [&](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument jsonDoc(2048);
-    JsonArray wifiList = jsonDoc.createNestedArray();
 
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       if (apList[i].apName.length() > 0) {
-        JsonObject wifiNet = wifiList.createNestedObject();
+        JsonObject wifiNet = jsonDoc.createNestedObject();
         wifiNet["id"] = i;
         wifiNet["apName"] = apList[i].apName;
         wifiNet["apPass"] = apList[i].apPass.length() > 0 ? true : false;
       }
     }
 
-    serializeJson(jsonDoc, response, 2048);
+    serializeJson(jsonDoc, *response);
 
     response->setCode(200);
     response->setContentLength(measureJson(jsonDoc));
@@ -323,7 +377,6 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
   webServer->on((apiPrefix + "/scan").c_str(), HTTP_GET, [&](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument jsonDoc(4096);
-    JsonArray wifiList = jsonDoc.createNestedArray();
 
     int scanResult;
     String ssid;
@@ -336,7 +389,7 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
     for (int8_t i = 0; i < scanResult; i++) {
       WiFi.getNetworkInfo(i, ssid, encryptionType, rssi, bssid, channel);
 
-      JsonObject wifiNet = wifiList.createNestedObject();
+      JsonObject wifiNet = jsonDoc.createNestedObject();
       wifiNet["ssid"] = ssid;
       wifiNet["encryptionType"] = encryptionType;
       wifiNet["rssi"] = rssi;
@@ -344,7 +397,7 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
       yield();
     }
 
-    serializeJson(jsonDoc, response, 2048);
+    serializeJson(jsonDoc, *response);
 
     response->setCode(200);
     response->setContentLength(measureJson(jsonDoc));
@@ -371,7 +424,7 @@ void WIFIMANAGER::attachWebServer(AsyncWebServer * srv) {
     jsonDoc["getHeapSize"] = ESP.getHeapSize();
     jsonDoc["freeHeap"] = ESP.getFreeHeap();
 
-    serializeJson(jsonDoc, response, 1024);
+    serializeJson(jsonDoc, *response);
 
     response->setCode(200);
     response->setContentLength(measureJson(jsonDoc));

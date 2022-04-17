@@ -24,9 +24,8 @@
 #include <Arduino.h>
 #include <AsyncElegantOTA.h>
 #include <AsyncTCP.h>
-#include <esp_wifi.h>
-#include <WiFi.h>
 #include <Preferences.h>
+#include <ESPmDNS.h>
 
 // Power Management
 #include <driver/rtc_io.h>
@@ -37,7 +36,6 @@ extern "C" {
 }
 
 #include "global.h"
-#include "wifi-events.h"
 #include "api-routes.h"
 #include "ble.h"
 #include "dac.h"
@@ -100,6 +98,13 @@ uint64_t runtime() {
   return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get()) / 1000;
 }
 
+void MDNSBegin(String hostname) {
+  if (!enableWifi) return;
+  Serial.println("[MDNS] Starting mDNS Service!");
+  MDNS.begin(hostname.c_str());
+  MDNS.addService("http", "tcp", 80);
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -145,8 +150,8 @@ void setup() {
     // Load well known Wifi AP credentials from NVS
     WifiManager.startBackgroundTask();
     WifiManager.attachWebServer(&webServer);
-
-    WiFiRegisterEvents(WiFi);
+    WifiManager.fallbackToSoftAp(preferences.getBool("enableSoftAp", true));
+  
     APIRegisterRoutes();
     AsyncElegantOTA.begin(&webServer);
     webServer.begin();
@@ -170,7 +175,7 @@ void setup() {
 void softReset() {
   if (enableWifi) {
     webServer.end();
-    MDNSEnd();
+    MDNS.end();
     Mqtt.disconnect();
     WiFi.disconnect();
   }

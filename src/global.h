@@ -37,7 +37,7 @@ RTC_DATA_ATTR struct timing_t {
   const unsigned int setupInterval = 15 * 60 * 1000 / 255;   // Interval in ms to execute code
 } Timing;
 
-RTC_DATA_ATTR uint64_t sleepTime = 0;             // Time that the esp32 slept
+RTC_DATA_ATTR uint64_t sleepTime = 0;       // Time that the esp32 slept
 
 TANKLEVEL Tanklevel;
 WIFIMANAGER WifiManager;
@@ -56,3 +56,5 @@ AsyncEventSource events("/events");
 Preferences preferences;
 
 MQTTclient Mqtt;
+
+bool enableWifi = true;                     // Enable Wifi, disable to reduce power consumtion, stored in NVS
