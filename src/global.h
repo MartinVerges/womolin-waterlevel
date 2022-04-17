@@ -26,11 +26,11 @@
 RTC_DATA_ATTR struct timing_t {
   // Check Services like MQTT, ...
   uint64_t lastServiceCheck = 0;               // last millis() from ServiceCheck
-  const unsigned int serviceInterval = 10000;  // Interval in ms to execute code
+  const unsigned int serviceInterval = 30000;  // Interval in ms to execute code
 
   // Sensor data in loop()
   uint64_t lastSensorRead = 0;              // last millis() from Sensor read
-  const unsigned int sensorInterval = 1000; // Interval in ms to execute code
+  const unsigned int sensorInterval = 5000; // Interval in ms to execute code
 
   // Setup executing in loop()
   uint64_t lastSetupRead = 0;               // last millis() from Setup run

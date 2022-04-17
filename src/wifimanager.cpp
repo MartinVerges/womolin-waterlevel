@@ -175,6 +175,16 @@ bool WIFIMANAGER::configAvailable() {
     return configuredSSIDs > 0;
 }
 
+// only call this function when you have configuredSSIDs > 0, otherwise it will fail!
+uint8_t WIFIMANAGER::getApEntry() {
+  for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
+    if (apList[i].apName.length()) return i;
+  }
+  Serial.print(F("[WIFI][ERROR] We did not find a valid entry!"));
+  Serial.print(F("[WIFI][ERROR] Make sure to not call this function if configuredSSIDs != 1."));
+  return 0;
+}
+
 void WIFIMANAGER::loop() {
   if (millis() - lastWifiCheck < intervalWifiCheck) return;
   lastWifiCheck = millis();
@@ -183,8 +193,10 @@ void WIFIMANAGER::loop() {
     // Check if we are connected to a well known SSID
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       if (WiFi.SSID() == apList[i].apName) {
-        Serial.print(F("[WIFI] Connected to the known SSID. Connected to: "));
-        Serial.println(apList[i].apName);
+        Serial.printf("[WIFI][STATUS] Connected to known SSID: '%s' with IP %s.\n",
+          WiFi.SSID().c_str(),
+          WiFi.localIP().toString().c_str()
+        );
         return;
       }
     }
@@ -217,39 +229,48 @@ bool WIFIMANAGER::tryConnect() {
     return false;
   }
 
-  int8_t scanResult = WiFi.scanNetworks(false, true);
-  if(scanResult <= 0) {
-    Serial.println(F("[WIFI] Unable to find WIFI networks in range to this device!"));
-    return false;
-  }
-  Serial.print(F("[WIFI] Found networks: "));
-  Serial.println(scanResult);
   int choosenAp = INT_MIN;
-  int choosenRssi = INT_MIN;
-  for(int8_t x = 0; x < scanResult; ++x) {
-    String ssid;
-    uint8_t encryptionType;
-    int32_t rssi;
-    uint8_t* bssid;
-    int32_t channel;
-    WiFi.getNetworkInfo(x, ssid, encryptionType, rssi, bssid, channel);
-    for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
-      if (apList[i].apName.length() == 0 || apList[i].apName != ssid) continue;
-
-      if (rssi > choosenRssi) {
-        if(encryptionType == WIFI_AUTH_OPEN || apList[i].apPass.length() > 0) { // open wifi or we do know a password
-          choosenAp = i;
-          choosenRssi = rssi;
-        }
-      } // else lower wifi signal
+  if (configuredSSIDs == 1) {
+    // only one configured SSID, skip scanning and try to connect to this specific one.
+    choosenAp = getApEntry();
+  } else {
+    int8_t scanResult = WiFi.scanNetworks(false, true);
+    if(scanResult <= 0) {
+      Serial.println(F("[WIFI] Unable to find WIFI networks in range to this device!"));
+      return false;
     }
+    Serial.print(F("[WIFI] Found networks: "));
+    Serial.println(scanResult);
+    int choosenRssi = INT_MIN;  // we want to select the strongest signal with the highest priority if we have multiple SSIDs available
+    for(int8_t x = 0; x < scanResult; ++x) {
+      String ssid;
+      uint8_t encryptionType;
+      int32_t rssi;
+      uint8_t* bssid;
+      int32_t channel;
+      WiFi.getNetworkInfo(x, ssid, encryptionType, rssi, bssid, channel);
+      for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
+        if (apList[i].apName.length() == 0 || apList[i].apName != ssid) continue;
+
+        if (rssi > choosenRssi) {
+          if(encryptionType == WIFI_AUTH_OPEN || apList[i].apPass.length() > 0) { // open wifi or we do know a password
+            choosenAp = i;
+            choosenRssi = rssi;
+          }
+        } // else lower wifi signal
+      }
+    }
+    WiFi.scanDelete();
   }
-  WiFi.scanDelete();
+
   if (choosenAp == INT_MIN) {
     Serial.println(F("[WIFI] Unable to find an SSID to connect to!"));
     return false;
   } else {
-    Serial.println(F("[WIFI] Found a signal to a known SSID, trying to connect to..."));
+    Serial.printf("[WIFI] Trying to connect to SSID %s with password %s.\n", 
+      apList[choosenAp].apName.c_str(),
+      (apList[choosenAp].apPass.length() > 0 ? "'***'" : "''")
+    );
 
     WiFi.begin(apList[choosenAp].apName.c_str(), apList[choosenAp].apPass.c_str());
     wl_status_t status = WiFi.status();

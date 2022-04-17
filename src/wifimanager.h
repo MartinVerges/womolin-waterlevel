@@ -40,12 +40,15 @@ class WIFIMANAGER {
     bool createFallbackAP = true;      // Create an AP for configuration if no other connection is available
 
     uint64_t lastWifiCheck = 0;        // Time of last Wifi health check
-    uint32_t intervalWifiCheck = 1000; // Interval of the Wifi health checks
+    uint32_t intervalWifiCheck = 5000; // Interval of the Wifi health checks
     uint64_t startApTime = 0;          // Time when the AP was started
     uint32_t timeoutApMillis = 300000; // Timeout of an AP when no client is connected, if timeout reached rescan, tryconnect or createAP
 
     // Wipe the apList credentials
     void clearApList();
+
+    // Get id of the first non empty entry
+    uint8_t getApEntry();
 
   public:
     // We let the loop run as as Task
