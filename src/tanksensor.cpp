@@ -12,7 +12,7 @@
 #endif
 
 #define uS_TO_S_FACTOR   1000000           // Conversion factor for micro seconds to seconds
-#define TIME_TO_SLEEP    10                 // WakeUp interval
+#define TIME_TO_SLEEP    10                // WakeUp interval
 
 // Fix an issue with the HX711 library on ESP32
 #if !(defined(ARDUINO_ARCH_ESP32))
@@ -52,7 +52,14 @@ void deepsleepForSeconds(int seconds) {
 // Check if a feature is enabled, that prevents the
 // deep sleep mode of our ESP32 chip.
 void sleepOrDelay() {
-  if (enableWifi || enableBle || enableMqtt || Tanklevel.isSetupRunning()) {
+  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+    if (LevelManagers[i]->isSetupRunning()) {
+      yield();
+      delay(50);
+      return;
+    }
+  }
+  if (enableWifi || enableBle || enableMqtt) {
     yield();
     delay(50);
   } else {
@@ -143,7 +150,10 @@ void setup() {
     // This won't fix the problem, a check of the sensor log is required
     deepsleepForSeconds(5);
   }
-  Tanklevel.begin(GPIO_HX711_DOUT, GPIO_HX711_SCK, (String(NVS_NAMESPACE) + "s1").c_str());
+
+  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+    LevelManagers[i]->begin((String(NVS_NAMESPACE) + String("s") + String(i)).c_str());
+  }
   if (!preferences.begin(NVS_NAMESPACE)) {
     preferences.clear();
   }
@@ -161,8 +171,12 @@ void setup() {
   enableDac = preferences.getBool("enableDac", true);
   enableMqtt = preferences.getBool("enableMqtt", false);
 
-  // we need to bring up WiFi to provide a convenient setup routine
-  if (!Tanklevel.isConfigured()) enableWifi = true;
+  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+    if (!LevelManagers[i]->isConfigured()) {
+      // we need to bring up WiFi to provide a convenient setup routine
+      enableWifi = true;
+    }
+  }
   
   if (enableWifi) initWifiAndServices();
   else Serial.println(F("[WIFI] Not starting WiFi!"));
@@ -204,37 +218,48 @@ void loop() {
     }
   }
   
-  if (Tanklevel.isSetupRunning()) {
-    // run the level setup
-    if (runtime() - Timing.lastSetupRead >= Timing.setupInterval) {
-      Timing.lastSetupRead = runtime();
-      int val = Tanklevel.runLevelSetup();
-      if (val > 0) {
-        events.send(String(val).c_str(), "reading", runtime()); 
-      } else {
-        events.send("Unable to read data from sensor!", "setuperror", runtime());
-        Serial.println(F("[SENSOR] Unable to read data from sensor!"));
+  bool setup = false;
+  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+    if (!LevelManagers[i]->isSetupRunning()) {
+      setup = true;
+      // run the level setup
+      if (runtime() - Timing.lastSetupRead >= Timing.setupInterval) {
+        Timing.lastSetupRead = runtime();
+        int val = LevelManagers[i]->runLevelSetup();
+        if (val > 0) {
+          events.send(String(val).c_str(), "reading", runtime()); 
+        } else {
+          events.send("Unable to read data from sensor!", "setuperror", runtime());
+          Serial.println(F("[SENSOR] Unable to read data from sensor!"));
+        }
       }
     }
-  } else {
-    // run regular operation
-    if (runtime() - Timing.lastSensorRead > Timing.sensorInterval) {
-      Timing.lastSensorRead = runtime();
-      int val = -1;
-      if (Tanklevel.isConfigured()) {
-        val = Tanklevel.getCalculatedPercentage();
-        events.send(String(val).c_str(), "level", runtime());
-        if (enableDac) dacValue(val);
-        if (enableBle) updateBleCharacteristic(val);
+  }
+
+  // run regular operation
+  if (!setup && runtime() - Timing.lastSensorRead > Timing.sensorInterval) {
+    Timing.lastSensorRead = runtime();
+
+    int level;
+    for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+      level = -1;
+      if (LevelManagers[i]->isConfigured()) {
+        level = LevelManagers[i]->getCalculatedPercentage();
+        String ident = String("level") + String(i);
+        events.send(String(level).c_str(), ident.c_str(), runtime());
+        if (enableDac) dacValue(i, level);
+        if (enableBle) updateBleCharacteristic(level);  // FIXME: need to manage multiple levels
         if (enableMqtt && Mqtt.isReady()) {
-          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel").c_str(), 0, true, String(val).c_str());
+          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), 0, true, String(level).c_str());
         }
-        Serial.printf("[SENSOR] Current tank level %d percent, raw value is %d\n", val, Tanklevel.getSensorMedianValue(true));
+        Serial.printf("[SENSOR] Current level of %d. sensor is %d (raw %d)\n",
+          i+1, level, LevelManagers[i]->getSensorMedianValue(true)
+        );
       } else {
-        if (enableDac) dacValue(0);
-        if (enableBle) updateBleCharacteristic(0);
-        val = Tanklevel.getSensorMedianValue();
-        Serial.printf("[SENSOR] Tanklevel not configured, please run the setup! Raw sensor value = %d\n", val);
+        if (enableDac) dacValue(i, 0);
+        if (enableBle) updateBleCharacteristic(level);  // FIXME
+        level = LevelManagers[i]->getSensorMedianValue();
+        Serial.printf("[SENSOR] Sensor %d not configured, please run the setup! Raw sensor value %d\n", i, level);
       }
     }
   }

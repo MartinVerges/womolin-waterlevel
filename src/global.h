@@ -18,8 +18,6 @@
 #include "MQTTclient.h"
 #include "wifimanager.h"
 
-#define GPIO_HX711_DOUT 33                  // GPIO pin to use for DT or DOUT
-#define GPIO_HX711_SCK 32                   // GPIO pin to use for SCK
 #define webserverPort 80                    // Start the Webserver on this port
 #define NVS_NAMESPACE "tanksensor"          // Preferences.h namespace to store settings
 
@@ -39,9 +37,14 @@ RTC_DATA_ATTR struct timing_t {
 
 RTC_DATA_ATTR uint64_t sleepTime = 0;       // Time that the esp32 slept
 
-TANKLEVEL Tanklevel;
 WIFIMANAGER WifiManager;
 bool enableWifi = true;                     // Enable Wifi, disable to reduce power consumtion, stored in NVS
+
+TANKLEVEL LevelManager1(33, 32);
+#define LEVELMANAGERS 1
+TANKLEVEL * LevelManagers[LEVELMANAGERS] = {
+  &LevelManager1
+};
 
 struct Button {
   const gpio_num_t PIN;

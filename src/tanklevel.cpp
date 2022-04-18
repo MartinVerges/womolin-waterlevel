@@ -26,7 +26,8 @@ typedef struct {
 RTC_DATA_ATTR sensorReadings readingHistory[MAX_RTC_HISTORY];
 RTC_DATA_ATTR int readingHistoryCount = 0;
 
-TANKLEVEL::TANKLEVEL() {
+TANKLEVEL::TANKLEVEL(uint8_t dout, uint8_t pd_sck) {
+    hx711.begin(dout, pd_sck, 32);
 }
 
 TANKLEVEL::~TANKLEVEL() {
@@ -71,8 +72,7 @@ int TANKLEVEL::getLevelData(int perc) {
   } else return -1;
 }
 
-void TANKLEVEL::begin(uint8_t dout, uint8_t pd_sck, const char * ns) {
-  hx711.begin(dout, pd_sck, 32);
+void TANKLEVEL::begin(const char * ns) {
   NVS = (char *)ns;
 
   if (!preferences.begin(NVS, false)) {

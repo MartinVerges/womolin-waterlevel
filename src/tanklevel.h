@@ -59,11 +59,11 @@ class TANKLEVEL
         bool writeToNVS();
 
 	public:
-		TANKLEVEL();
+		TANKLEVEL(uint8_t dout, uint8_t pd_sck);
 		virtual ~TANKLEVEL();
 
         // Initialize the Webserver
-		void begin(uint8_t dout, uint8_t pd_sck, const char * ns = "tanksensor");
+		void begin(const char * ns = "tanksensor");
 
         // Configure uper and lower cutoff values for the setup (drop bad readings)
         void setLimits(float lower_end, float upper_end);

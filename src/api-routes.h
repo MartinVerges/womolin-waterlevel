@@ -30,31 +30,47 @@ void APIRegisterRoutes() {
   });
 
   webServer.on("/api/setup/start", HTTP_POST, [&](AsyncWebServerRequest *request) {
-    Tanklevel.setStartAsync();
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
+    LevelManagers[lm-1]->setStartAsync();
     if (request->contentType() == "application/json") { 
       request->send(200, "application/json", "{\"message\":\"Begin of Setup requested\"}");
     } else request->send(200, "text/plain", "Begin of Setup requested");
   });
 
   webServer.on("/api/setup/status", HTTP_GET, [&](AsyncWebServerRequest *request) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
     if (request->contentType() == "application/json") {
       String output;
       StaticJsonDocument<16> doc;
-      doc["setupIsRunning"] = Tanklevel.isSetupRunning();
+      doc["setupIsRunning"] = LevelManagers[lm-1]->isSetupRunning();
       serializeJson(doc, output);
       request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", String(Tanklevel.isSetupRunning()));
+    } else request->send(200, "text/plain", String(LevelManagers[lm-1]->isSetupRunning()));
   });
 
   webServer.on("/api/setup/end", HTTP_POST, [&](AsyncWebServerRequest *request) {
-    Tanklevel.setEndAsync();
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
+    LevelManagers[lm-1]->setEndAsync();
     if (request->contentType() == "application/json") {
       request->send(200, "application/json", "{\"message\":\"End of Setup requested\"}");
     } else request->send(200, "text/plain", "End of Setup requested");
   });
 
   webServer.on("/api/setup/abort", HTTP_POST, [&](AsyncWebServerRequest *request) {
-    Tanklevel.setAbortAsync();
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
+    LevelManagers[lm-1]->setAbortAsync();
     if (request->contentType() == "application/json") {
       request->send(200, "application/json", "{\"message\":\"Abort requested\"}");
     } else request->send(200, "text/plain", "Abort requested");
@@ -63,6 +79,9 @@ void APIRegisterRoutes() {
 
   webServer.on("/api/setup/values", HTTP_POST, [&](AsyncWebServerRequest * request){}, NULL,
     [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
     
     // Do a simple linear tank level setup using lower+upper reading
     DynamicJsonDocument jsonBuffer(64);
@@ -72,7 +91,7 @@ void APIRegisterRoutes() {
       request->send(422, "text/plain", "Invalid data");
       return;
     }
-    if (!Tanklevel.setupFrom2Values(jsonBuffer["lower"], jsonBuffer["upper"])) {
+    if (!LevelManagers[lm-1]->setupFrom2Values(jsonBuffer["lower"], jsonBuffer["upper"])) {
       request->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
     } else request->send(200, "application/json", "{\"message\":\"Setup completed\"}");
   });
@@ -132,15 +151,18 @@ void APIRegisterRoutes() {
 
   webServer.on("/api/level/data", HTTP_POST, [&](AsyncWebServerRequest * request){}, NULL,
     [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
 
     DynamicJsonDocument jsonBuffer(2048);
     deserializeJson(jsonBuffer, (const char*)data);
 
-    Tanklevel.writeSingleEntrytoNVS(255, jsonBuffer["setupDone"].as<boolean>());
+    LevelManagers[lm-1]->writeSingleEntrytoNVS(255, jsonBuffer["setupDone"].as<boolean>());
     JsonArray array = jsonBuffer["data"].as<JsonArray>();
     uint8_t i = 0;
     for (JsonVariant v : array) {
-        Tanklevel.writeSingleEntrytoNVS(i, v.as<int>());
+        LevelManagers[lm-1]->writeSingleEntrytoNVS(i, v.as<int>());
         yield();
         i++;
         if (i > 100) break;
@@ -177,23 +199,31 @@ void APIRegisterRoutes() {
   });
 
   webServer.on("/api/rawvalue", HTTP_GET, [&](AsyncWebServerRequest *request) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
     if (request->contentType() == "application/json") {
       String output;
       StaticJsonDocument<16> doc;
-      doc["raw"] = Tanklevel.getSensorMedianValue(true);
+      doc["raw"] = LevelManagers[lm-1]->getSensorMedianValue(true);
       serializeJson(doc, output);
       request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)Tanklevel.getSensorMedianValue(true));
+    } else request->send(200, "text/plain", (String)LevelManagers[lm-1]->getSensorMedianValue(true));
   });
 
   webServer.on("/api/level/current", HTTP_GET, [&](AsyncWebServerRequest *request) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
     if (request->contentType() == "application/json") {
       String output;
       StaticJsonDocument<16> doc;
-      doc["levelPercent"] = Tanklevel.getCalculatedPercentage(true);
+      doc["levelPercent"] = LevelManagers[lm-1]->getCalculatedPercentage(true);
       serializeJson(doc, output);
       request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)Tanklevel.getCalculatedPercentage(true));
+    } else request->send(200, "text/plain", (String)LevelManagers[lm-1]->getCalculatedPercentage(true));
   });
 
   webServer.on("/api/esp/heap", HTTP_GET, [&](AsyncWebServerRequest * request) {
@@ -209,14 +239,18 @@ void APIRegisterRoutes() {
   });
 
   webServer.on("/api/level/data", HTTP_GET, [&](AsyncWebServerRequest *request) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     DynamicJsonDocument json(3072);
-    json["setupDone"] = Tanklevel.isConfigured();
+    json["setupDone"] = LevelManagers[lm-1]->isConfigured();
 
     const size_t CAPACITY = JSON_ARRAY_SIZE(101);
     StaticJsonDocument<CAPACITY> doc;
     JsonArray array = doc.to<JsonArray>();
-    for (int i = 0; i <= 100; i++) array.add(Tanklevel.getLevelData(i));
+    for (int i = 0; i <= 100; i++) array.add(LevelManagers[lm-1]->getLevelData(i));
     json["data"] = array;
 
     serializeJson(json, *response);
