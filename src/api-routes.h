@@ -102,49 +102,56 @@ void APIRegisterRoutes() {
     DynamicJsonDocument jsonBuffer(1024);
     deserializeJson(jsonBuffer, (const char*)data);
 
-    String hostname = jsonBuffer["hostname"].as<String>();
-    if (!hostname || hostname.length() < 3 || hostname.length() > 32) {
-      // TODO: Add better checks according to RFC hostnames
-      request->send(422, "application/json", "{\"message\":\"Invalid hostname!\"}");
-      return;
-    } else {
-      preferences.putString("hostName", hostname);
-    }
+    if (preferences.begin(NVS_NAMESPACE)) {
+      String hostname = jsonBuffer["hostname"].as<String>();
+      if (!hostname || hostname.length() < 3 || hostname.length() > 32) {
+        // TODO: Add better checks according to RFC hostnames
+        request->send(422, "application/json", "{\"message\":\"Invalid hostname!\"}");
+        return;
+      } else {
+        preferences.putString("hostName", hostname);
+      }
 
-    if (preferences.putBool("enableWifi", jsonBuffer["enablewifi"].as<boolean>())) {
-      enableWifi = jsonBuffer["enablewifi"].as<boolean>();
-    }
-    if (preferences.putBool("enableBle", jsonBuffer["enableble"].as<boolean>())) {
-      if (enableBle) stopBleServer();
-      enableBle = jsonBuffer["enableble"].as<boolean>();
-      if (enableBle) createBleServer(hostName);
-      yield();
-    }
-    if (preferences.putBool("enableWifi", jsonBuffer["enablewifi"].as<boolean>())) {
-      enableWifi = jsonBuffer["enablewifi"].as<boolean>();
-    }
-    if (preferences.putBool("enableSoftAp", jsonBuffer["enablesoftap"].as<boolean>())) {
-      WifiManager.fallbackToSoftAp(jsonBuffer["enablesoftap"].as<boolean>());
-    }
+      if (preferences.putBool("enableWifi", jsonBuffer["enablewifi"].as<boolean>())) {
+        enableWifi = jsonBuffer["enablewifi"].as<boolean>();
+      }
+      if (preferences.putBool("enableSoftAp", jsonBuffer["enablesoftap"].as<boolean>())) {
+        WifiManager.fallbackToSoftAp(jsonBuffer["enablesoftap"].as<boolean>());
+      }
 
-    if (preferences.putBool("enableDac", jsonBuffer["enabledac"].as<boolean>())) {
-      enableDac = jsonBuffer["enabledac"].as<boolean>();
-    }
+      if (preferences.putBool("enableBle", jsonBuffer["enableble"].as<boolean>())) {
+        if (enableBle) stopBleServer();
+        enableBle = jsonBuffer["enableble"].as<boolean>();
+        if (enableBle) createBleServer(hostName);
+        yield();
+      }
 
-    // MQTT Settings
-    preferences.putUInt("mqttPort", jsonBuffer["mqttport"].as<uint16_t>());
-    preferences.putString("mqttHost", jsonBuffer["mqtthost"].as<String>());
-    preferences.putString("mqttTopic", jsonBuffer["mqtttopic"].as<String>());
-    preferences.putString("mqttUser", jsonBuffer["mqttuser"].as<String>());
-    preferences.putString("mqttPass", jsonBuffer["mqttpass"].as<String>());
-    if (preferences.putBool("enableMqtt", jsonBuffer["enablemqtt"].as<boolean>())) {
-      if (enableMqtt) Mqtt.disconnect(true);
-      enableMqtt = jsonBuffer["enablemqtt"].as<boolean>();
-      if (enableMqtt) {
-        Mqtt.prepare();
-        Mqtt.connect();
+      if (preferences.putBool("enableDac", jsonBuffer["enabledac"].as<boolean>())) {
+        enableDac = jsonBuffer["enabledac"].as<boolean>();
+      }
+
+      // MQTT Settings
+      preferences.putUInt("mqttPort", jsonBuffer["mqttport"].as<uint16_t>());
+      preferences.putString("mqttHost", jsonBuffer["mqtthost"].as<String>());
+      preferences.putString("mqttTopic", jsonBuffer["mqtttopic"].as<String>());
+      preferences.putString("mqttUser", jsonBuffer["mqttuser"].as<String>());
+      preferences.putString("mqttPass", jsonBuffer["mqttpass"].as<String>());
+      if (preferences.putBool("enableMqtt", jsonBuffer["enablemqtt"].as<boolean>())) {
+        if (enableMqtt) Mqtt.disconnect(true);
+        enableMqtt = jsonBuffer["enablemqtt"].as<boolean>();
+        if (enableMqtt) {
+          Mqtt.prepare(
+            jsonBuffer["mqtthost"].as<String>(),
+            jsonBuffer["mqttport"].as<uint16_t>(),
+            jsonBuffer["mqtttopic"].as<String>(),
+            jsonBuffer["mqttuser"].as<String>(),
+            jsonBuffer["mqttpass"].as<String>()
+          );
+          Mqtt.connect();
+        }
       }
     }
+    preferences.end();
     
     request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
   });
@@ -179,19 +186,22 @@ void APIRegisterRoutes() {
       String output;
       StaticJsonDocument<1024> doc;
 
-      doc["hostname"] = hostName;
-      doc["enablewifi"] = enableWifi;
-      doc["enablesoftap"] = WifiManager.getFallbackState();
-      doc["enableble"] = enableBle;
-      doc["enabledac"] = enableDac;
+      if (preferences.begin(NVS_NAMESPACE, true)) {
+        doc["hostname"] = hostName;
+        doc["enablewifi"] = enableWifi;
+        doc["enablesoftap"] = WifiManager.getFallbackState();
+        doc["enableble"] = enableBle;
+        doc["enabledac"] = enableDac;
 
-      // MQTT
-      doc["enablemqtt"] = enableMqtt;
-      doc["mqttport"] = preferences.getUInt("mqttPort", 1883);
-      doc["mqtthost"] = preferences.getString("mqttHost", "");
-      doc["mqtttopic"] = preferences.getString("mqttTopic", "");
-      doc["mqttuser"] = preferences.getString("mqttUser", "");
-      doc["mqttpass"] = preferences.getString("mqttPass", "");
+        // MQTT
+        doc["enablemqtt"] = enableMqtt;
+        doc["mqttport"] = preferences.getUInt("mqttPort", 1883);
+        doc["mqtthost"] = preferences.getString("mqttHost", "");
+        doc["mqtttopic"] = preferences.getString("mqttTopic", "");
+        doc["mqttuser"] = preferences.getString("mqttUser", "");
+        doc["mqttpass"] = preferences.getString("mqttPass", "");
+      }
+      preferences.end();
 
       serializeJson(doc, output);
       request->send(200, "application/json", output);

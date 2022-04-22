@@ -14,10 +14,6 @@ bool enableMqtt = false;                    // Enable Mqtt, disable to reduce po
 MQTTclient::MQTTclient() {}
 MQTTclient::~MQTTclient() {}
 
-void MQTTclient::addPreferences(Preferences * preferences) {
-  _pref = *preferences;
-}
-
 bool MQTTclient::isConnected() {
   return client.connected();
 }
@@ -25,10 +21,14 @@ bool MQTTclient::isReady() {
   if (mqttTopic.length() > 0 && isConnected()) return true;
   else return false;
 }
-void MQTTclient::prepare() {
-  mqttTopic = _pref.getString("mqttTopic", "verges/tanklevel");
-  mqttUser = _pref.getString("mqttUser", "");
-  mqttPass = _pref.getString("mqttPass", "");
+
+
+void MQTTclient::prepare(String host, uint16_t port, String topic, String user, String pass) {
+  mqttHost = host;
+  mqttPort = port;
+  mqttTopic = topic;
+  mqttUser = user;
+  mqttPass = pass;
 
   if (mqttUser.length() > 0 && mqttPass.length() > 0) {
       Serial.print(F("[MQTT] Configured broker user: "));
@@ -36,9 +36,6 @@ void MQTTclient::prepare() {
       Serial.println(F("[MQTT] Configured broker pass: **hidden**"));
       client.setCredentials(mqttUser.c_str(), mqttPass.c_str());
   } else Serial.println(F("[MQTT] Configured broker without user and password!"));
-
-  mqttHost = _pref.getString("mqttHost", "localhost");
-  mqttPort = _pref.getUInt("mqttPort", 1883);
 
   if (mqttPort == 0 || mqttPort < 0 || mqttPort > 65535) mqttPort = 1883;
   Serial.print(F("[MQTT] Configured broker port: "));
@@ -66,7 +63,6 @@ void MQTTclient::connect() {
     Serial.println(F("[MQTT] disabled!"));
   } else {
     Serial.println(F("[MQTT] Connecting to MQTT..."));
-    prepare();
     client.connect();
   }
 }

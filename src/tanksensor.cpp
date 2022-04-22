@@ -127,7 +127,15 @@ void initWifiAndServices() {
 
   MDNSBegin(hostName);
 
-  if (enableMqtt) Mqtt.prepare();
+  if (enableMqtt) {
+    Mqtt.prepare(
+      preferences.getString("mqttHost", "localhost"),
+      preferences.getUInt("mqttPort", 1883),
+      preferences.getString("mqttTopic", "verges/tanklevel"),
+      preferences.getString("mqttUser", ""),
+      preferences.getString("mqttPass", "")
+    );
+  }
   else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
 }
 
@@ -158,8 +166,6 @@ void setup() {
     preferences.clear();
   }
 
-  Mqtt.addPreferences(&preferences);
-
   // Load Settings from NVS
   hostName = preferences.getString("hostName");
   if (hostName.isEmpty()) {
@@ -183,6 +189,8 @@ void setup() {
 
   if (enableBle) createBleServer(hostName);
   else Serial.println(F("[BLE] Bluetooth low energy is disabled."));
+
+  preferences.end();
 }
 
 // Soft reset the ESP to start with setup() again, but without loosing RTC_DATA as it would be with ESP.reset()
@@ -247,7 +255,7 @@ void loop() {
         level = LevelManagers[i]->getCalculatedPercentage();
         String ident = String("level") + String(i);
         events.send(String(level).c_str(), ident.c_str(), runtime());
-        if (enableDac) dacValue(i, level);
+        if (enableDac) dacValue(i+1, level);
         if (enableBle) updateBleCharacteristic(level);  // FIXME: need to manage multiple levels
         if (enableMqtt && Mqtt.isReady()) {
           Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), 0, true, String(level).c_str());
@@ -256,7 +264,7 @@ void loop() {
           i+1, level, LevelManagers[i]->getSensorMedianValue(true)
         );
       } else {
-        if (enableDac) dacValue(i, 0);
+        if (enableDac) dacValue(i+1, 0);
         if (enableBle) updateBleCharacteristic(level);  // FIXME
         level = LevelManagers[i]->getSensorMedianValue();
         Serial.printf("[SENSOR] Sensor %d not configured, please run the setup! Raw sensor value %d\n", i, level);

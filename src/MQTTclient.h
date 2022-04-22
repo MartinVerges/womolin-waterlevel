@@ -13,8 +13,6 @@
 extern bool enableMqtt;
 
 class MQTTclient {
-    private:
-        Preferences _pref;
     public:
         String mqttTopic;
         String mqttUser;
@@ -25,10 +23,9 @@ class MQTTclient {
 		MQTTclient();
         virtual ~MQTTclient();
 
-        void addPreferences(Preferences * preferences);
         bool isConnected();
         bool isReady();
-        void prepare();
+        void prepare(String host, uint16_t port, String topic, String user, String pass);
         void registerEvents();
         void connect();
         void disconnect(bool force = false);
