@@ -239,10 +239,10 @@ Wire Notes Line
 Text Notes 7300 4450 0    50   ~ 0
 Arscilicii S-TTK
 $Comp
-L Connector_Generic:Conn_02x02_Odd_Even J?
+L Connector_Generic:Conn_02x02_Odd_Even J4
 U 1 1 62508E53
 P 7650 5300
-F 0 "J?" H 7700 4975 50  0000 C CNN
+F 0 "J4" H 7700 4975 50  0000 C CNN
 F 1 "AMP Mini Fit" H 7700 5066 50  0000 C CNN
 F 2 "" H 7650 5300 50  0001 C CNN
 F 3 "~" H 7650 5300 50  0001 C CNN

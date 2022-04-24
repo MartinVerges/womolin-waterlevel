@@ -475,6 +475,17 @@ F 3 "~" H 3000 3100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
+L power:GND #PWR04
+U 1 1 62FB4FFA
+P 3000 3250
+F 0 "#PWR04" H 3000 3000 50  0001 C CNN
+F 1 "GND" H 3005 3077 50  0000 C CNN
+F 2 "" H 3000 3250 50  0001 C CNN
+F 3 "" H 3000 3250 50  0001 C CNN
+	1    3000 3250
+	1    0    0    -1  
+$EndComp
+$Comp
 L Device:C C4
 U 1 1 62FB5000
 P 3200 3100
@@ -483,6 +494,17 @@ F 1 "10u" H 3350 3050 50  0000 L CNN
 F 2 "Capacitor_SMD:C_1206_3216Metric" H 3238 2950 50  0001 C CNN
 F 3 "~" H 3200 3100 50  0001 C CNN
 	1    3200 3100
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR06
+U 1 1 62FB5006
+P 3200 3250
+F 0 "#PWR06" H 3200 3000 50  0001 C CNN
+F 1 "GND" H 3205 3077 50  0000 C CNN
+F 2 "" H 3200 3250 50  0001 C CNN
+F 3 "" H 3200 3250 50  0001 C CNN
+	1    3200 3250
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
@@ -731,6 +753,17 @@ F 3 "~" H 2900 7950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
+L power:GND #PWR03
+U 1 1 6303CA63
+P 2900 8100
+F 0 "#PWR03" H 2900 7850 50  0001 C CNN
+F 1 "GND" H 2905 7927 50  0000 C CNN
+F 2 "" H 2900 8100 50  0001 C CNN
+F 3 "" H 2900 8100 50  0001 C CNN
+	1    2900 8100
+	1    0    0    -1  
+$EndComp
+$Comp
 L Device:C C3
 U 1 1 6303CA69
 P 3100 7950
@@ -739,6 +772,17 @@ F 1 "10u" H 3250 7900 50  0000 L CNN
 F 2 "Capacitor_SMD:C_1206_3216Metric" H 3138 7800 50  0001 C CNN
 F 3 "~" H 3100 7950 50  0001 C CNN
 	1    3100 7950
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR05
+U 1 1 6303CA6F
+P 3100 8100
+F 0 "#PWR05" H 3100 7850 50  0001 C CNN
+F 1 "GND" H 3105 7927 50  0000 C CNN
+F 2 "" H 3100 8100 50  0001 C CNN
+F 3 "" H 3100 8100 50  0001 C CNN
+	1    3100 8100
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
@@ -2518,7 +2562,7 @@ Connection ~ 4400 4150
 Wire Wire Line
 	4400 4150 4950 4150
 Wire Wire Line
-	4150 4150 3200 4150
+	4150 4150 2350 4150
 Wire Wire Line
 	2350 2900 2350 4150
 Wire Wire Line
@@ -2552,7 +2596,7 @@ Connection ~ 4050 8850
 Wire Wire Line
 	4050 8850 4050 8750
 Wire Wire Line
-	4050 8850 3100 8850
+	4050 8850 2250 8850
 Wire Wire Line
 	2250 7750 2250 8850
 $Comp
@@ -2755,24 +2799,4 @@ Wire Wire Line
 Wire Wire Line
 	14950 3950 14800 3950
 Connection ~ 14800 3950
-Wire Wire Line
-	2900 8100 2900 8850
-Connection ~ 2900 8850
-Wire Wire Line
-	2900 8850 2250 8850
-Wire Wire Line
-	3100 8100 3100 8850
-Connection ~ 3100 8850
-Wire Wire Line
-	3100 8850 2900 8850
-Wire Wire Line
-	3000 3250 3000 4150
-Connection ~ 3000 4150
-Wire Wire Line
-	3000 4150 2350 4150
-Wire Wire Line
-	3200 3250 3200 4150
-Connection ~ 3200 4150
-Wire Wire Line
-	3200 4150 3000 4150
 $EndSCHEMATC

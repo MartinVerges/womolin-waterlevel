@@ -1,3 +1,4 @@
 (sym_lib_table
   (lib (name Caravansensor)(type Legacy)(uri ${KIPRJMOD}/Caravansensor.lib)(options "")(descr ""))
+  (lib (name Caravansensor-rescue)(type Legacy)(uri ${KIPRJMOD}/Caravansensor-rescue.lib)(options "")(descr ""))
 )
