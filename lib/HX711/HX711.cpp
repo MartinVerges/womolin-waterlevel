@@ -61,7 +61,7 @@ uint8_t shiftInSlow(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder) {
 #define SHIFTIN_WITH_SPEED_SUPPORT(data,clock,order) shiftIn(data,clock,order)
 #endif
 
-#ifdef ARCH_ESPRESSIF
+#if ARCH_ESPRESSIF
 // ESP8266 doesn't read values between 0x20000 and 0x30000 when DOUT is pulled up.
 #define DOUT_MODE INPUT
 #else
@@ -75,7 +75,7 @@ HX711::HX711() {
 HX711::~HX711() {
 }
 
-void HX711::begin(uint8_t dout, uint8_t pd_sck, uint8_t gain) {
+void HX711::begin(byte dout, byte pd_sck, byte gain) {
 	PD_SCK = pd_sck;
 	DOUT = dout;
 
@@ -89,7 +89,7 @@ bool HX711::is_ready() {
 	return digitalRead(DOUT) == LOW;
 }
 
-void HX711::set_gain(uint8_t gain) {
+void HX711::set_gain(byte gain) {
 	switch (gain) {
 		case 128:		// channel A, gain factor 128
 			GAIN = 1;
@@ -228,9 +228,9 @@ bool HX711::wait_ready_timeout(unsigned long timeout, unsigned long delay_ms) {
 	return false;
 }
 
-double HX711::read_average(uint8_t times) {
+long HX711::read_average(byte times) {
 	long sum = 0;
-	for (uint8_t i = 0; i < times; i++) {
+	for (byte i = 0; i < times; i++) {
 		sum += read();
 		// Probably will do no harm on AVR but will feed the Watchdog Timer (WDT) on ESP.
 		// https://github.com/bogde/HX711/issues/73
@@ -296,11 +296,11 @@ double HX711::get_value(uint8_t times) {
 	return read_average(times) - OFFSET;
 }
 
-float HX711::get_units(uint8_t times) {
+float HX711::get_units(byte times) {
 	return get_value(times) / SCALE;
 }
 
-void HX711::tare(uint8_t times) {
+void HX711::tare(byte times) {
 	double sum = read_average(times);
 	set_offset(sum);
 }
