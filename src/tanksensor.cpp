@@ -101,10 +101,6 @@ void print_wakeup_reason() {
   }
 }
 
-uint64_t runtime() {
-  return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get()) / 1000;
-}
-
 void MDNSBegin(String hostname) {
   if (!enableWifi) return;
   Serial.println("[MDNS] Starting mDNS Service!");
@@ -140,6 +136,8 @@ void initWifiAndServices() {
 }
 
 void setup() {
+  pinMode(airPump.PIN, OUTPUT);
+
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println(F("\n\n==== starting ESP32 setup() ===="));
@@ -218,6 +216,13 @@ void loop() {
     }
   }
 
+  // Stop repressurizing the tube after X seconds
+  if (airPump.enabled && runtime() - airPump.duration > airPump.starttime) {
+    Serial.println(F("[AIRPUMP] Shutting down"));
+    airPump.enabled = false;
+    digitalWrite(airPump.PIN, LOW);
+  }
+
   if (runtime() - Timing.lastServiceCheck > Timing.serviceInterval) {
     Timing.lastServiceCheck = runtime();
     // Check if all the services work
@@ -228,7 +233,7 @@ void loop() {
   
   bool setup = false;
   for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-    if (!LevelManagers[i]->isSetupRunning()) {
+    if (LevelManagers[i]->isSetupRunning()) {
       setup = true;
       // run the level setup
       if (runtime() - Timing.lastSetupRead >= Timing.setupInterval) {

@@ -46,6 +46,14 @@ TANKLEVEL * LevelManagers[LEVELMANAGERS] = {
   &LevelManager1
 };
 
+struct Pump {
+  const gpio_num_t PIN;
+  bool enabled;
+  uint64_t duration;
+  uint64_t starttime;
+};
+Pump airPump = {GPIO_NUM_5, false, 5000, 0};   // Airpump using GPIO to repressure the tube
+
 struct Button {
   const gpio_num_t PIN;
   bool pressed;
@@ -60,3 +68,7 @@ AsyncEventSource events("/events");
 Preferences preferences;
 
 MQTTclient Mqtt;
+
+uint64_t runtime() {
+  return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get()) / 1000;
+}
