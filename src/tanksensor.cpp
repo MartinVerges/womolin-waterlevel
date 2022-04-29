@@ -136,8 +136,6 @@ void initWifiAndServices() {
 }
 
 void setup() {
-  pinMode(airPump.PIN, OUTPUT);
-
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println(F("\n\n==== starting ESP32 setup() ===="));
@@ -214,13 +212,6 @@ void loop() {
     } else {
       initWifiAndServices();
     }
-  }
-
-  // Stop repressurizing the tube after X seconds
-  if (airPump.enabled && runtime() - airPump.duration > airPump.starttime) {
-    Serial.println(F("[AIRPUMP] Shutting down"));
-    airPump.enabled = false;
-    digitalWrite(airPump.PIN, LOW);
   }
 
   if (runtime() - Timing.lastServiceCheck > Timing.serviceInterval) {

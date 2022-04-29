@@ -21,18 +21,6 @@ extern bool enableDac;
 
 void APIRegisterRoutes() {
 
-  webServer.on("/api/restore/pressure", HTTP_POST, [&](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-
-    Serial.println(F("[AIRPUMP] Restoring pressure in the tube"));
-    airPump.enabled = true;
-    airPump.starttime = runtime();
-    digitalWrite(airPump.PIN, HIGH);
-
-    request->send(200, "application/json", "{\"message\":\"Restoring pressure in the tube!\"}");
-    request->send(response);
-  });
-
   webServer.on("/api/reset", HTTP_POST, [&](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     request->send(200, "application/json", "{\"message\":\"Resetting the sensor!\"}");
