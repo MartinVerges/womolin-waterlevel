@@ -21,6 +21,11 @@
 #define webserverPort 80                    // Start the Webserver on this port
 #define NVS_NAMESPACE "tanksensor"          // Preferences.h namespace to store settings
 
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_BMP085.h>
+Adafruit_BMP085 myBMP;
+
 RTC_DATA_ATTR struct timing_t {
   // Check Services like MQTT, ...
   uint64_t lastServiceCheck = 0;               // last millis() from ServiceCheck
@@ -28,7 +33,7 @@ RTC_DATA_ATTR struct timing_t {
 
   // Sensor data in loop()
   uint64_t lastSensorRead = 0;              // last millis() from Sensor read
-  const unsigned int sensorInterval = 5000; // Interval in ms to execute code
+  const unsigned int sensorInterval = 500; // Interval in ms to execute code
 
   // Setup executing in loop()
   uint64_t lastSetupRead = 0;               // last millis() from Setup run

@@ -20,6 +20,37 @@ extern bool enableMqtt;
 extern bool enableDac;
 
 void APIRegisterRoutes() {
+/*
+  webServer.on("/api/getHistory", HTTP_GET, [&](AsyncWebServerRequest *request) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
+    StaticJsonDocument<4096> doc;
+    JsonArray array = doc.to<JsonArray>();
+    for (int i = 0; i <= 100; i++) array.add(LevelManagers[lm-1]->getHistory(i));
+    json["data"] = array;
+
+    serializeJson(json, *response);
+
+    readingHistory[r].currentLevel;
+    readingHistory[r].sensorValue;
+    readingHistory[r].timestamp;
+
+    request->send(200, "application/json", "{\"message\":\"New offset configured!\"}");
+  });*/
+
+  webServer.on("/api/setCurrentValueAsOffset", HTTP_POST, [&](AsyncWebServerRequest *request) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
+    LevelManagers[lm-1]->setSensorOffset();
+    Serial.print("New offset value = ");
+    Serial.println(LevelManagers[lm-1]->getSensorOffset());
+
+    request->send(200, "application/json", "{\"message\":\"New offset configured!\"}");
+  });
 
   webServer.on("/api/reset", HTTP_POST, [&](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("application/json");
@@ -217,10 +248,10 @@ void APIRegisterRoutes() {
     if (request->contentType() == "application/json") {
       String output;
       StaticJsonDocument<16> doc;
-      doc["raw"] = LevelManagers[lm-1]->getSensorMedianValue(true);
+      doc["raw"] = LevelManagers[lm-1]->getCalulcatedMedianReading(true);
       serializeJson(doc, output);
       request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)LevelManagers[lm-1]->getSensorMedianValue(true));
+    } else request->send(200, "text/plain", (String)LevelManagers[lm-1]->getCalulcatedMedianReading(true));
   });
 
   webServer.on("/api/level/current", HTTP_GET, [&](AsyncWebServerRequest *request) {

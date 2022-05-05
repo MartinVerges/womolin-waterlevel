@@ -10,6 +10,7 @@
 #ifndef TANKLEVEL_h
 #define TANKLEVEL_h
 
+#define NVS_WRITE_TOLERANCE_PA 250                 // Only write airpressure data to NVS if pressure difference is higher
 #define MAX_DATA_POINTS 255                        // how many level data points to store (increased accuracy)
 #include <Arduino.h>
 #include <Preferences.h>
@@ -26,10 +27,16 @@ class TANKLEVEL
 
         struct config_t {
             bool setupDone = false;                // Configuration done or not yet initialized sensor
+            double offset = 0.0;                   // Offset (tare) value of an unpressurized sensor reading
+            int airPressureOnFilling = 0;          // AirPressure Value at the time when filling the tank to compensate readings
             int readings[101] = {0};               // pressure readings to map to percentage filling 0% - 100%
         } levelConfig;
 
         int lastMedian = 0;                        // last reading median value
+        double lastRawReading = 0.0;               // last sensor raw reading
+
+        int airPressure = 0;                       // current air pressure
+        bool tankWasEmpty = false;                 // True, when the tank is empty to store new airPressure when filling again
 
         struct state_t {
             int start = false;                     // Async start the setup
@@ -49,14 +56,14 @@ class TANKLEVEL
         // Search through the setupConfig sensor readings and find the upper limit cutoff index
         int findEndCutoffIndex();
 
-        // Print out the reading array to Serial (for debugging) 
-        void printData(int* readings, size_t count);
-
         // Reset the setupConfig struct
         void resetSetupData();
 
         // Write current leveldata to non volatile storage
         bool writeToNVS();
+
+        // Write the offset to NVS
+        //bool updateOffsetNVS();
 
 	public:
 		TANKLEVEL(uint8_t dout, uint8_t pd_sck);
@@ -66,10 +73,13 @@ class TANKLEVEL
 		void begin(String ns = "tanksensor");
 
         // Configure uper and lower cutoff values for the setup (drop bad readings)
-        void setLimits(float lower_end, float upper_end);
+        void setCutoffLimits(float lower_end, float upper_end);
 
-        // Read Median(10) raw value from sensor
-        int getSensorMedianValue(bool cached = false);
+        // Read Median(10) value from sensor and return it unmodifed
+        double getSensorRawMedianReading(bool cached = false);
+
+        // Read Median(10) value from sensor and optimize/modify directly
+        int getCalulcatedMedianReading(bool cached = false);
 
         // Calculate current level in percent. Requires valid level setup.
         int getCalculatedPercentage(bool cached = false);
@@ -88,6 +98,12 @@ class TANKLEVEL
 
         // Write a single level data entry to NVS, i=0-100%, 255 value 0 or 1 for levelsetup done
         bool writeSingleEntrytoNVS(uint8_t i, int value);
+
+        // Write a new offset into NVS
+        bool updateOffsetNVS();
+
+        // Write the AirPressure for compenation into NVS
+        bool updateAirPressureNVS(uint32_t newPressure);
 
         // Start a new level setup
         bool beginLevelSetup();
@@ -110,11 +126,17 @@ class TANKLEVEL
         // Abort the current running level setup without storing it to NVS
         bool abortLevelSetup();
 
-        // Print out the current level configuration database
-        void printData();
-
         // helper to get ESP32 runtime
         uint64_t runtime();
+
+        // Set a new sensor offset from current sensor reading
+        void setSensorOffset(double newOffset = 0.0);
+        
+        // Get the current sensor offset value
+        double getSensorOffset();
+
+        // Update the current evironmental pressure to compensate sensor reading
+        void setAirPressure(int32_t currentPressure);
 };
 
 #endif /* TANKLEVEL_h */
