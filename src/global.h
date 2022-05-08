@@ -12,9 +12,8 @@
 #include <DNSServer.h>
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
+#include <LittleFS.h>
 #include <Preferences.h>
-#define SPIFFS LITTLEFS 
-#include <LITTLEFS.h>
 #include "MQTTclient.h"
 #include "wifimanager.h"
 

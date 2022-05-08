@@ -7,11 +7,12 @@
  *
 **/
 
+#include <Arduino.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
-#include <LITTLEFS.h>
+#include <LittleFS.h>
 #include "ble.h"
 
 extern bool enableWifi;
@@ -299,7 +300,7 @@ void APIRegisterRoutes() {
     request->send(response);
   });
   
-  webServer.serveStatic("/", LITTLEFS, "/").setDefaultFile("index.html");
+  webServer.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
   
   events.onConnect([](AsyncEventSourceClient *client) {
     if (client->lastId()) {

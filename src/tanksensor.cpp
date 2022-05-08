@@ -18,8 +18,8 @@
 #if !(defined(ARDUINO_ARCH_ESP32))
   #define ARDUINO_ARCH_ESP32 true
 #endif
-#undef USE_LITTLEFS
-#define USE_LITTLEFS true
+#undef USE_LittleFS
+#define USE_LittleFS true
 
 #include <Arduino.h>
 #include <AsyncElegantOTA.h>
@@ -32,8 +32,13 @@
 #include <esp_sleep.h>
 #include <soc/rtc.h>
 extern "C" {
-  #include <esp_clk.h>
+  #if ESP_ARDUINO_VERSION_MAJOR >= 2
+    #include <esp32/clk.h>
+  #else
+    #include <esp_clk.h>
+  #endif
 }
+
 
 #include "global.h"
 #include "api-routes.h"
@@ -148,8 +153,8 @@ void setup() {
   attachInterrupt(button1.PIN, ISR_button1, FALLING);
   Serial.println(F("done"));
   
-  if (!LITTLEFS.begin(true)) {
-    Serial.println(F("[FS] An Error has occurred while mounting LITTLEFS"));
+  if (!LittleFS.begin(true)) {
+    Serial.println(F("[FS] An Error has occurred while mounting LittleFS"));
     // Reduce power consumption while having issues with NVS
     // This won't fix the problem, a check of the sensor log is required
     deepsleepForSeconds(5);
