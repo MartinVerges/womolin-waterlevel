@@ -48,7 +48,7 @@ bool TANKLEVEL::updateOffsetNVS() {
     preferences.end();
     return true;
   } else {
-    Serial.println("Unable to write data to NVS, giving up...");
+    Serial.println("updateOffsetNVS() - Unable to write data to NVS, giving up...");
     return false;
   }
 }
@@ -68,7 +68,7 @@ bool TANKLEVEL::writeToNVS() {
     preferences.end();
     return true;
   } else {
-    Serial.println("Unable to write data to NVS, giving up...");
+    Serial.println("writeToNVS() - Unable to write data to NVS, giving up...");
     return false;
   }
 }
@@ -93,14 +93,14 @@ int TANKLEVEL::getLevelData(int perc) {
   } else return -1;
 }
 
-void TANKLEVEL::setSensorOffset(double newOffset) {
+void TANKLEVEL::setSensorOffset(double newOffset, bool updateNVS) {
   if (newOffset == 0.0) {
     Serial.println(F("Reading the new offset from sensor"));
     newOffset = getSensorRawMedianReading(false);
   }
   levelConfig.offset = newOffset;
   hx711.set_offset(levelConfig.offset);
-  updateOffsetNVS();
+  if (updateNVS) updateOffsetNVS();
 }
 
 double TANKLEVEL::getSensorOffset() {
@@ -115,7 +115,7 @@ void TANKLEVEL::begin(String ns) {
   } else {
     levelConfig.setupDone = preferences.getBool("setupDone", false);
     levelConfig.airPressureOnFilling = preferences.getUInt("airpressure", 0);
-    setSensorOffset(preferences.getDouble("offset", 0.0));
+    setSensorOffset(preferences.getDouble("offset", 0.0), false);
     
     if (levelConfig.setupDone) {
       Serial.println("LevelData restored from Storage...");
@@ -189,6 +189,7 @@ int TANKLEVEL::getCalculatedPercentage(bool cached) {
         levelConfig.airPressureOnFilling = airPressure;
         updateAirPressureNVS(airPressure);
       }
+
       return x;
     }
   }
@@ -208,7 +209,7 @@ bool TANKLEVEL::updateAirPressureNVS(uint32_t newPressure) {
     preferences.end();
     return true;
   } else {
-    Serial.println("Unable to write data to NVS, giving up...");
+    Serial.println("updateAirPressureNVS() - Unable to write data to NVS, giving up...");
     return false;
   }
 }

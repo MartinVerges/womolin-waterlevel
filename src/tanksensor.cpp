@@ -161,18 +161,10 @@ void setup() {
     // This won't fix the problem, a check of the sensor log is required
     deepsleepForSeconds(5);
   }
+  if (!preferences.begin(NVS_NAMESPACE)) preferences.clear();
 
   Wire.begin(GPIO_NUM_5, GPIO_NUM_18);
   myBMP.begin(BMP085_ULTRAHIGHRES, &Wire);
-
-  uint32_t currentPressure = myBMP.readPressure();
-  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-    LevelManagers[i]->setAirPressure(currentPressure);
-    LevelManagers[i]->begin((String(NVS_NAMESPACE) + String("s") + String(i)).c_str());
-  }
-  if (!preferences.begin(NVS_NAMESPACE)) {
-    preferences.clear();
-  }
 
   // Load Settings from NVS
   hostName = preferences.getString("hostName");
@@ -184,7 +176,14 @@ void setup() {
   enableBle = preferences.getBool("enableBle", true);
   enableDac = preferences.getBool("enableDac", true);
   enableMqtt = preferences.getBool("enableMqtt", false);
+  preferences.end();
 
+  uint32_t currentPressure = myBMP.readPressure();
+  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+    LevelManagers[i]->setAirPressure(currentPressure);
+    LevelManagers[i]->begin((String(NVS_NAMESPACE) + String("s") + String(i)).c_str());
+  }
+  
   for (uint8_t i=0; i < LEVELMANAGERS; i++) {
     if (!LevelManagers[i]->isConfigured()) {
       // we need to bring up WiFi to provide a convenient setup routine
@@ -197,8 +196,6 @@ void setup() {
 
   if (enableBle) createBleServer(hostName);
   else Serial.println(F("[BLE] Bluetooth low energy is disabled."));
-
-  preferences.end();
 }
 
 // Soft reset the ESP to start with setup() again, but without loosing RTC_DATA as it would be with ESP.reset()
@@ -279,13 +276,15 @@ void loop() {
         if (enableBle) updateBleCharacteristic(level);  // FIXME: need to manage multiple levels
         if (enableMqtt && Mqtt.isReady()) {
           Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), 0, true, String(level).c_str());
+          Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), 0, true, String(LevelManagers[i]->getSensorRawMedianReading(true)).c_str());
+          Mqtt.client.publish((Mqtt.mqttTopic + "/airPressure" + String(i+1)).c_str(), 0, true, String(myBMP.readPressure()).c_str());
+
 /*
           float alt = myBMP.readAltitude();
-          Mqtt.client.publish((Mqtt.mqttTopic + "/sensor" + String(i+1)).c_str(), 0, true, String(LevelManagers[i]->getCalulcatedMedianReading(true)).c_str());
           Mqtt.client.publish((Mqtt.mqttTopic + "/temperature" + String(i+1)).c_str(), 0, true, String(myBMP.readTemperature()).c_str());
-          Mqtt.client.publish((Mqtt.mqttTopic + "/pressure" + String(i+1)).c_str(), 0, true, String(myBMP.readPressure()).c_str());
           Mqtt.client.publish((Mqtt.mqttTopic + "/sealevelpressure" + String(i+1)).c_str(), 0, true, String(myBMP.readSealevelPressure(alt)).c_str());
-          Mqtt.client.publish((Mqtt.mqttTopic + "/altitude" + String(i+1)).c_str(), 0, true, String(alt).c_str());*/
+          Mqtt.client.publish((Mqtt.mqttTopic + "/altitude" + String(i+1)).c_str(), 0, true, String(alt).c_str());
+*/
         }
         Serial.printf("[SENSOR] Current level of %d. sensor is %d%% (raw %d, calculated %d)\n",
           i+1, level, (int)LevelManagers[i]->getSensorRawMedianReading(true), LevelManagers[i]->getCalulcatedMedianReading(true)

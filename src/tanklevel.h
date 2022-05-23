@@ -126,11 +126,11 @@ class TANKLEVEL
         // Abort the current running level setup without storing it to NVS
         bool abortLevelSetup();
 
-        // helper to get ESP32 runtime
+        // helper to get ESP32 runtime^
         uint64_t runtime();
 
         // Set a new sensor offset from current sensor reading
-        void setSensorOffset(double newOffset = 0.0);
+        void setSensorOffset(double newOffset = 0.0, bool updateNVS = true);
         
         // Get the current sensor offset value
         double getSensorOffset();
