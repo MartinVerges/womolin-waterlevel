@@ -205,11 +205,12 @@ bool TANKLEVEL::updateAirPressureNVS(uint32_t newPressure) {
       // only a minor change, we don't update the old value
     } else {
       preferences.putUInt("airpressure", newPressure);
+      Serial.println(F("updateAirPressureNVS() - Wrote new pressure to NVS"));
     }
     preferences.end();
     return true;
   } else {
-    Serial.println("updateAirPressureNVS() - Unable to write data to NVS, giving up...");
+    Serial.println(F("updateAirPressureNVS() - Unable to write data to NVS, giving up..."));
     return false;
   }
 }
