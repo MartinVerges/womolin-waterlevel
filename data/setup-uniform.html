@@ -91,6 +91,9 @@
           This is only suitable for tanks that have a linear design.</p>
         <p>Make sure that your sensor is mounted correctly and that the tank has been completely emptied.
           Then save the current measured value of your sensor.</p>
+        <p>
+          <button type="button" id="tara">Tara</button>
+        </p>
         <form>
           <p>
             <label>Empty tank value</label><br>
@@ -124,9 +127,22 @@
     <script>
       var errorGetFun = function() {
           $("#modaltitel").html("Error");
-          $("#modaltext").html("Unable to retrive data. Please try again!");
+          $("#modaltext").html("Unable to send or retrive data. Please try again!");
           window.location.href='#modal'
         }
+
+      $("#tara").click(function() {
+        $.ajax("/api/setCurrentValueAsOffset", {
+          type : 'POST',
+          dataType : "json",
+          contentType : 'application/json',
+          success : function(data, status, jqXHR) { // success callback
+            $("#lowerbtn").click();
+          },
+          error : errorSendFun,
+          fail : errorSendFun
+        });
+      });
 
       $("#lowerbtn").click(function() {
         $.get("/api/rawvalue", function( data ) {
@@ -175,7 +191,7 @@
         }, false);
 
         source.addEventListener('setup', function(e) {
-          console.log("new datapoint received");
+           console.log("new datapoint received");
         }, false);
         source.addEventListener('setuperror', function(e) {
           console.log("an error occured durring setup: " + e);

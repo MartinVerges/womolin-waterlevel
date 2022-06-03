@@ -129,13 +129,18 @@ void initWifiAndServices() {
   MDNSBegin(hostName);
 
   if (enableMqtt) {
-    Mqtt.prepare(
-      preferences.getString("mqttHost", "localhost"),
-      preferences.getUInt("mqttPort", 1883),
-      preferences.getString("mqttTopic", "verges/tanklevel"),
-      preferences.getString("mqttUser", ""),
-      preferences.getString("mqttPass", "")
-    );
+    if (preferences.begin(NVS_NAMESPACE)) {
+      Mqtt.prepare(
+        preferences.getString("mqttHost", "localhost"),
+        preferences.getUInt("mqttPort", 1883),
+        preferences.getString("mqttTopic", "verges/tanklevel"),
+        preferences.getString("mqttUser", ""),
+        preferences.getString("mqttPass", "")
+      );
+      preferences.end();
+    } else {
+      Serial.println(F("[NVS] Unable to open NVS Namespace for MQTT"));
+    }
   }
   else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
 }
@@ -278,7 +283,6 @@ void loop() {
           Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), 0, true, String(level).c_str());
           Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), 0, true, String(LevelManagers[i]->getSensorRawMedianReading(true)).c_str());
           Mqtt.client.publish((Mqtt.mqttTopic + "/airPressure" + String(i+1)).c_str(), 0, true, String(myBMP.readPressure()).c_str());
-
 /*
           float alt = myBMP.readAltitude();
           Mqtt.client.publish((Mqtt.mqttTopic + "/temperature" + String(i+1)).c_str(), 0, true, String(myBMP.readTemperature()).c_str());
