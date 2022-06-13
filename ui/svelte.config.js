@@ -29,7 +29,7 @@ const config = {
 
 		vite: {
 			build: {
-				minify: true
+				assetsInlineLimit: 131072,
 			},
 			optimizeDeps: {
 				entries: []
