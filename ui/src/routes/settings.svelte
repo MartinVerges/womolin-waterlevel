@@ -4,28 +4,39 @@
   	import { onMount } from 'svelte';
     import { Button, Form, FormGroup, Input, Label } from 'sveltestrap';
     import Fa from 'svelte-fa/src/fa.svelte';
-    import { 
-        faFloppyDisk
-    } from '@fortawesome/pro-solid-svg-icons';
+    import { faFloppyDisk } from '@fortawesome/pro-solid-svg-icons/faFloppyDisk';
 
     let config = {};
 
     onMount(async () => {
-		const res = await fetch(`${variables.url}/api/config`)
-        .catch(error => console.log(error));
-		config = await res.json();
+		const response = await fetch(`${variables.url}/api/config`)
+        .catch(error => {
+            throw new Error(`${error})`);
+        });
+        if(response.ok) config = await response.json();
+        else {
+            toast.push(`Error ${response.status} ${response.statusText}<br>Unable to receive current settings.`, variables.toast.error)
+        }
 	});
 
-    async function doPost () {
-		const res = await fetch(`${variables.url}/api/config`, {
+    async function doSaveSettings () {
+		fetch(`${variables.url}/api/config`, {
 			method: 'POST',
-			body: JSON.stringify(config)
-		})
-		
-		const json = await res.json()
-		result = JSON.stringify(json)
+			body: JSON.stringify(config),
+            headers: { "Content-type": "application/json" }
+		}).then(response => {
+            if (response.ok) {
+                toast.push(`Settings successfully saved`, variables.toast.success)
+            } else {
+                toast.push(`Error ${response.status} ${response.statusText}<br>Unable to store new AP configuration.`, variables.toast.error)
+            }
+        }).catch(error => { throw new Error(`${error})`); })		
 	}
 </script>
+
+<svelte:head>
+  <title>Sensor Settings</title>
+</svelte:head>
 
 <div class="container">
     <h4>Configuration</h4>
@@ -54,5 +65,5 @@
             <Input id="mqttpass" bind:value={config.mqttpass} placeholder="Password" maxlength="32"/>
         </FormGroup>
     </Form>
-    <Button on:click={doPost} block style="height: 5rem;"><Fa icon={faFloppyDisk} />&nbsp;Save Settings</Button>
+    <Button on:click={doSaveSettings} block style="height: 5rem;"><Fa icon={faFloppyDisk} />&nbsp;Save Settings</Button>
 </div>

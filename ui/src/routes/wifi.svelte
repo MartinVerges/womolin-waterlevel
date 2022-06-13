@@ -13,17 +13,15 @@
         ModalHeader
     } from 'sveltestrap';
     import Fa from 'svelte-fa/src/fa.svelte';
-    import {
-        faWifi,
-        faFloppyDisk,
-        faSignalBars,
-        faSignalBarsGood,
-        faSignalBarsFair,
-        faSignalBarsWeak,
-        faLockKeyhole,
-        faLockKeyholeOpen
-    } from '@fortawesome/pro-solid-svg-icons';
-    import { toast } from '@zerodevx/svelte-toast'
+    import { faWifi } from '@fortawesome/pro-solid-svg-icons/faWifi';
+    import { faFloppyDisk } from '@fortawesome/pro-solid-svg-icons/faFloppyDisk';
+    import { faSignalBars } from '@fortawesome/pro-solid-svg-icons/faSignalBars';
+    import { faSignalBarsGood } from '@fortawesome/pro-solid-svg-icons/faSignalBarsGood';
+    import { faSignalBarsFair } from '@fortawesome/pro-solid-svg-icons/faSignalBarsFair';
+    import { faSignalBarsWeak } from '@fortawesome/pro-solid-svg-icons/faSignalBarsWeak';
+    import { faLockKeyhole } from '@fortawesome/pro-solid-svg-icons/faLockKeyhole';
+    import { faLockKeyholeOpen } from '@fortawesome/pro-solid-svg-icons/faLockKeyholeOpen';
+    import { toast } from '@zerodevx/svelte-toast';
     import Tabs from '$lib/tabs/Tabs.svelte';
 	import TabPanel from '$lib/tabs/TabPanel.svelte';
 	import TabList from '$lib/tabs/TabList.svelte';
@@ -32,29 +30,25 @@
 
     let wifiConfigList = []; // [{"id":1,"apName":"xxx","apPass":true},...]
     onMount(async () => {
-		const res = await fetch(`${variables.url}/api/wifi/configlist`)
+		const response = await fetch(`${variables.url}/api/wifi/configlist`)
         .catch(error => {
             throw new Error(`${error})`);
         });
-		if(res.ok) wifiConfigList = await res.json();
+		if(response.ok) wifiConfigList = await response.json();
         else {
-            toast.push(`Error ${response.status} ${response.statusText}<br>Unable to request the list of known Wifi SSIDs.`, {
-                theme: { '--toastBackground': '#F56565', '--toastBarBackground': '#C53030' }
-            })
+            toast.push(`Error ${response.status} ${response.statusText}<br>Unable to request the list of known Wifi SSIDs.`, variables.toast.error)
         }
 	});
 
     let wifiScanList = []; // [{"ssid":"xxx","encryptionType":3,"rssi":-58,"channel":7},...]
     onMount(async () => {
-		const res = await fetch(`${variables.url}/api/wifi/scan`)
+		const response = await fetch(`${variables.url}/api/wifi/scan`)
         .catch(error => {
             throw new Error(`${error})`);
         });
-        if(res.ok) wifiScanList = await res.json();
+        if(response.ok) wifiScanList = await response.json();
         else {
-            toast.push(`Error ${response.status} ${response.statusText}<br>Unable to scan for Wifi Networks.`, {
-                theme: { '--toastBackground': '#F56565', '--toastBarBackground': '#C53030' }
-            })
+            toast.push(`Error ${response.status} ${response.statusText}<br>Unable to scan for Wifi Networks.`, variables.toast.error)
         }
 	});
 
@@ -69,14 +63,9 @@
                 // clear fields after successfull POST
                 addApConfig.apName = "";
                 addApConfig.apPass = "";
-                toast.push(`The new AP was saved`, {
-                    theme: { '--toastBackground': '#48BB78', '--toastBarBackground': '#2F855A'
-                    }
-                })
+                toast.push(`The new AP was saved`, variables.toast.success)
             } else {
-                toast.push(`Error ${response.status} ${response.statusText}<br>Unable to store new AP configuration.`, {
-                    theme: { '--toastBackground': '#F56565', '--toastBarBackground': '#C53030' }
-                })
+                toast.push(`Error ${response.status} ${response.statusText}<br>Unable to store new AP configuration.`, variables.toast.error)
             }
         }).catch(error => {
             throw new Error(`${error})`);
@@ -101,20 +90,19 @@
 		}).then(response => {
             if (response.ok) {
                 openModal = false;
-                toast.push(`Successfully removed AP from known List`, {
-                    theme: { '--toastBackground': '#48BB78', '--toastBarBackground': '#2F855A'
-                    }
-                })
+                toast.push(`Successfully removed AP from known List`, variables.toast.success)
             } else {
-                toast.push(`Error ${response.status} ${response.statusText}<br>Unable to remove the AP configuration.`, {
-                    theme: { '--toastBackground': '#F56565', '--toastBarBackground': '#C53030' }
-                })
+                toast.push(`Error ${response.status} ${response.statusText}<br>Unable to remove the AP configuration.`, variables.toast.error)
             }
         }).catch(error => {
             throw new Error(`${error})`);
         })
 	}
 </script>
+
+<svelte:head>
+  <title>Wifi Settings</title>
+</svelte:head>
 
 <div>
     <Modal isOpen={openModal} {toggleModal}>

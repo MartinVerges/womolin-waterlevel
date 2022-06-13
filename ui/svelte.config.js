@@ -1,20 +1,41 @@
 import preprocess from 'svelte-preprocess';
 import adapter from '@sveltejs/adapter-static';
 
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 
 	kit: {
 		adapter: adapter({
-			fallback: '200.html'
+			pages: 'build',
+			assets: 'build',
+			fallback: 'index.html',
+			precompress: false
 		}),
 
+		routes: filepath => {
+			if (!filepath.startsWith('api/')) {
+				console.log(`[Enable route] ${filepath}`)
+				return true
+			} else {
+				console.log(`[Disabled route] ${filepath}`)
+				return true
+			}
+		},
+
+		prerender: {
+			default: false
+		},
+
 		vite: {
+			build: {
+				minify: true
+			},
 			optimizeDeps: {
 				entries: []
 			},
 			ssr: {
-				noExternal: ['@popperjs/core', "@fortawesome/pro-solid-svg-icons"]
+				noExternal: ['@popperjs/core']
 			},
 			css: {
 				preprocessorOptions: {

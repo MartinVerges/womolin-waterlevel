@@ -3,6 +3,8 @@
     import { variables } from '$lib/utils/variables';
 	import { fade } from 'svelte/transition';
     import { Progress, Button, Spinner } from 'sveltestrap';
+    import { toast } from '@zerodevx/svelte-toast';
+    import { onMount } from 'svelte';
 
     // ******* SHOW LEVEL ******** //
     let level = undefined;
@@ -13,7 +15,7 @@
         if (res.ok) level = parseInt(value);
 		else throw new Error(value);
     }
-    $: getCurrentLevel()
+    onMount(async () => { getCurrentLevel() } );
 
     let refreshInterval
     $: {
@@ -25,13 +27,17 @@
     let isVisible = false;
     async function repressurizeTube() {
         isVisible = true;
-        fetch(`${url}/api/restore/pressure`)
-        .then(response => {
-            isVisible = false;
-        })
-        .catch(error => console.log(error));
+        const response = await fetch(`${variables.url}/api/restore/pressure`).catch(error => { throw new Error(`${error})`); });
+		if(!response.ok) {
+            toast.push(`Error ${response.status} ${response.statusText}<br>Unable to repressurize tube.`, variables.toast.error)
+        }
+        isVisible = false;
     }
 </script>
+
+<svelte:head>
+  <title>Sensor Status</title>
+</svelte:head>
 
 <div class="container">
     <div class="row">
@@ -44,7 +50,7 @@
         </div>
         <div class="col-sm-3">
             <Button on:click={repressurizeTube} block style="height: 5rem;">
-                {#if isVisible}<div in:fade={{ delay: 5000 }}><Spinner size="sm" type="grow" />&nbsp;</div>{/if}
+                {#if isVisible}<div out:fade={{ delay: 5000 }}><Spinner size="sm" type="grow" />&nbsp;</div>{/if}
                 Repressurize
             </Button>
         </div>

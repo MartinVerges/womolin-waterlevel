@@ -1,12 +1,12 @@
-
+<script context="module">
+  export const trailingSlash = 'always';
+</script>
 <script>
     import Fa from 'svelte-fa/src/fa.svelte';
-    import { 
-        faRv,
-        faHouseChimney,
-        faWifi,
-        faGear
-    } from '@fortawesome/pro-solid-svg-icons';
+    import { faRv } from '@fortawesome/pro-solid-svg-icons/faRv';
+    import { faHouseChimney } from '@fortawesome/pro-solid-svg-icons/faHouseChimney';
+    import { faWifi } from '@fortawesome/pro-solid-svg-icons/faWifi';
+    import { faGear } from '@fortawesome/pro-solid-svg-icons/faGear';
     import { fly } from 'svelte/transition';
     import { page } from '$app/stores';
     let path;
@@ -33,17 +33,17 @@
 
           <ul class="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">
             <li>
-              <a href="/" class="nav-link {path === '/' ? 'text-secondary' : 'text-white'}">
+              <a href="/" class="nav-link {path === '/index' ? 'text-secondary' : 'text-white'}">
                 <Fa icon={faHouseChimney} size="lg" class="bi d-block mx-auto mb-1" />Home
               </a>
             </li>
             <li>
-              <a href="/wifi" class="nav-link {path === '/wifi' ? 'text-secondary' : 'text-white'}">
+              <a href="wifi" class="nav-link {path === '/wifi' ? 'text-secondary' : 'text-white'}">
                 <Fa icon={faWifi} size="lg" class="bi d-block mx-auto mb-1" />Wifi
               </a>
             </li>
             <li>
-              <a href="/settings" class="nav-link {path === '/settings' ? 'text-secondary' : 'text-white'}">
+              <a href="settings" class="nav-link {path === '/settings' ? 'text-secondary' : 'text-white'}">
                 <Fa icon={faGear} size="lg" class="bi d-block mx-auto mb-1" />Settings
               </a>
             </li>
