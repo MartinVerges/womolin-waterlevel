@@ -23,24 +23,35 @@ from sys import platform, path
 
 Import("env")
 
+if not os.path.exists("tools/mklittlefs"):
+    file =  env.get("PROJECT_DIR") + "/tools/build_littlefs_tool.sh"
+    st = os.stat(file)
+    os.chmod(file, st.st_mode | stat.S_IEXEC)
+    
+    os.chdir(env.get("PROJECT_DIR") + "/tools")
+    env.Execute(file)
+    os.chdir(env.get("PROJECT_DIR"))
+
 if platform == "linux" or platform == "linux2":
-    file = env.get("PROJECT_DIR") + "/tools/mklittlefs_linux"
+    file = env.get("PROJECT_DIR") + "/tools/mklittlefs"
     print("Replace MKFSTOOL with " + file)
     st = os.stat(file)
     os.chmod(file, st.st_mode | stat.S_IEXEC)
     # Build the UI before buildfs
-    env.Execute("cd ui; npm install; npm run build; cd ..");
+    #env.Execute("cd ui; npm install; npm run build; cd ..");
+    print("[WARN] No automatic UI build for this platform", file=sys.stderr)
 
 elif platform == "darwin":
-    file = env.get("PROJECT_DIR") + "/tools/mklittlefs_darwin"
+    file = env.get("PROJECT_DIR") + "/tools/mklittlefs"
     print("Replace MKFSTOOL with " + file)
     st = os.stat(file)
     os.chmod(file, st.st_mode | stat.S_IEXEC)
     # Build the UI before buildfs
-    env.Execute("cd ui; npm install; npm run build; cd ..");
+    #env.Execute("cd ui; npm install; npm run build; cd ..");
+    print("[WARN] No automatic UI build for this platform", file=sys.stderr)
 
 elif platform == "win32":
-    file = env.get("PROJECT_DIR") + "/tools/mklittlefs_win.exe"
+    file = env.get("PROJECT_DIR") + "/tools/mklittlefs.exe"
     print("Replace MKFSTOOL with " + file)
 
     # FIXME: Build the UI before buildfs
