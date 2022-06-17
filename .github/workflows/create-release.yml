@@ -21,16 +21,16 @@ jobs:
         npm install
         npm run build
         cd ..
-        
+
     - name: 'Installing platformio'
       run: pip3 install -U platformio
 
     - name: 'Building a firmware for ESP32'
       run: |
-        pio run
-        pio run -t buildfs
+        pio run -e esp32dev
+        pio run -e esp32dev -t buildfs
 # produces ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
-# produces ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
+# produces ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin
 
     - name: 'Upload firmware Artifact'
       uses: actions/upload-artifact@v2
@@ -73,5 +73,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
+        asset_path: ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin
         asset_name: spiffs.bin
