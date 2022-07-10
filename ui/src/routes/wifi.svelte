@@ -28,33 +28,36 @@
 	import Tab from '$lib/tabs/Tab.svelte';
     let selectedId = "wifiConfigList";
 
-    let wifiConfigList = []; // [{"id":1,"apName":"xxx","apPass":true},...]
+    let wifiConfigList = undefined; // [{"id":1,"apName":"xxx","apPass":true},...]
     onMount(async () => {
-		const response = await fetch(`${variables.url}/api/wifi/configlist`)
-        .catch(error => {
-            throw new Error(`${error})`);
-        });
+		const response = await fetch(`/api/wifi/configlist`)
+        .catch(error => { throw new Error(`${error})`); });
 		if(response.ok) wifiConfigList = await response.json();
         else {
             toast.push(`Error ${response.status} ${response.statusText}<br>Unable to request the list of known Wifi SSIDs.`, variables.toast.error)
         }
 	});
 
-    let wifiScanList = []; // [{"ssid":"xxx","encryptionType":3,"rssi":-58,"channel":7},...]
-    onMount(async () => {
-		const response = await fetch(`${variables.url}/api/wifi/scan`)
-        .catch(error => {
-            throw new Error(`${error})`);
-        });
-        if(response.ok) wifiScanList = await response.json();
-        else {
+    let refreshInterval
+    let wifiScanList = undefined; // [{"ssid":"xxx","encryptionType":3,"rssi":-58,"channel":7},...] || {"status": "scanning"}
+    async function scanWifi() {
+		const response = await fetch(`/api/wifi/scan`)
+        .catch(error => { throw new Error(`${error})`); });
+        if(response.ok) {
+            wifiScanList = await response.json();
+            if (wifiScanList["status"] == "scanning") {
+                clearInterval(refreshInterval)
+                refreshInterval = setInterval(scanWifi, 5000)
+            } else clearInterval(refreshInterval);
+        } else {
             toast.push(`Error ${response.status} ${response.statusText}<br>Unable to scan for Wifi Networks.`, variables.toast.error)
         }
-	});
+	};
+    onMount(scanWifi);
 
     let addApConfig = { apName: "", apPass: "" };
     async function doAddAp () {
-		fetch(`${variables.url}/api/wifi/add`, {
+		fetch(`/api/wifi/add`, {
 			method: 'POST',
 			body: JSON.stringify(addApConfig),
             headers: { "Content-type": "application/json" }
@@ -83,7 +86,7 @@
     const toggleModal = () => openModal = !openModal;
     async function doDeleteAp () {
         openModal = false;
-		fetch(`${variables.url}/api/wifi/id`, {
+		fetch(`/api/wifi/id`, {
 			method: 'DELETE',
 			body: JSON.stringify(deleteAp),
             headers: { "Content-type": "application/json" }
@@ -124,34 +127,42 @@
 
 	<TabPanel id="wifiConfigList">
         <h4>List of known Wifi networks</h4>
-        {#each wifiConfigList as apEntry}
-        <div class="d-flex py-1 align-items-center">
-            <div class="p-2"><Fa fw icon={faSignalBars} /></div>
-            <div class="p-2 flex-grow-1 flex-lg-grow-0">{apEntry.apName}</div>
-            <div class="p-2"><Button class="btn-danger" size="sm" on:click={() => { openModal = true; deleteAp.id = apEntry.id; }}>Delete Wifi</Button></div>
-        </div>
+        {#if wifiConfigList == undefined }
+            <div class="d-flex"><div class="col-auto">loading ...</div></div>
         {:else}
-        <div class="d-flex"><div class="col-auto">loading ...</div></div>
-        {/each}
+            {#each wifiConfigList as apEntry}
+            <div class="d-flex py-1 align-items-center">
+                <div class="p-2"><Fa fw icon={faSignalBars} /></div>
+                <div class="p-2 flex-grow-1 flex-lg-grow-0">{apEntry.apName}</div>
+                <div class="p-2"><Button class="btn-danger" size="sm" on:click={() => { openModal = true; deleteAp.id = apEntry.id; }}>Delete Wifi</Button></div>
+            </div>
+            {:else}
+            <div class="d-flex"><div class="col-auto">No known Network stored</div></div>
+            {/each}
+        {/if}
 	</TabPanel>
 
 	<TabPanel id="wifiScanList">
         <h4>Available Wifi networks</h4>
-        {#each wifiScanList as apEntry}
-        <div class="d-flex py-1 align-items-center">
-            <div class="p-2">
-                <Fa fw icon={apEntry.rssi > -67 ? faSignalBars
-                    : apEntry.rssi > -70 ? faSignalBarsGood
-                    : apEntry.rssi > -80 ? faSignalBarsFair
-                    : faSignalBarsWeak} />
-                <Fa fw icon={apEntry.encryptionType > 0 ? faLockKeyhole : faLockKeyholeOpen} /></div>
-            <div class="p-2"><Button size="sm" on:click={() => prefillNewAp(apEntry.ssid)}>Add WiFi AP</Button></div>
-            <div class="p-2 flex-grow-1">{apEntry.ssid}</div>
-            <div class="p-2">{apEntry.rssi} dbm</div>
-        </div>
+        {#if wifiScanList == undefined || wifiScanList["status"] == "scanning"}
+            <div class="row"><div class="col-auto">loading ...</div></div>
         {:else}
-        <div class="row"><div class="col-auto">loading ...</div></div>
-        {/each}
+            {#each wifiScanList as apEntry}
+            <div class="d-flex py-1 align-items-center">
+                <div class="p-2">
+                    <Fa fw icon={apEntry.rssi > -67 ? faSignalBars
+                        : apEntry.rssi > -70 ? faSignalBarsGood
+                        : apEntry.rssi > -80 ? faSignalBarsFair
+                        : faSignalBarsWeak} />
+                    <Fa fw icon={apEntry.encryptionType > 0 ? faLockKeyhole : faLockKeyholeOpen} /></div>
+                <div class="p-2"><Button size="sm" on:click={() => prefillNewAp(apEntry.ssid)}>Add WiFi AP</Button></div>
+                <div class="p-2 flex-grow-1">{apEntry.ssid}</div>
+                <div class="p-2">{apEntry.rssi} dbm</div>
+            </div>
+            {:else}
+            <div class="d-flex"><div class="col-auto">No known Network stored</div></div>
+            {/each}
+        {/if}
 	</TabPanel>
 
 	<TabPanel id="wifiAddAp">

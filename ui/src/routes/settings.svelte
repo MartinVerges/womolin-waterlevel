@@ -5,14 +5,15 @@
     import { Button, Form, FormGroup, Input, Label } from 'sveltestrap';
     import Fa from 'svelte-fa/src/fa.svelte';
     import { faFloppyDisk } from '@fortawesome/pro-solid-svg-icons/faFloppyDisk';
+    import { toast } from '@zerodevx/svelte-toast';
 
     let config = {};
 
     onMount(async () => {
-		const response = await fetch(`${variables.url}/api/config`)
-        .catch(error => {
-            throw new Error(`${error})`);
-        });
+		const response = await fetch(`/api/config`, {
+            headers: { "Content-type": "application/json" }
+        })
+        .catch(error => { throw new Error(`${error})`); });
         if(response.ok) config = await response.json();
         else {
             toast.push(`Error ${response.status} ${response.statusText}<br>Unable to receive current settings.`, variables.toast.error)
@@ -20,7 +21,7 @@
 	});
 
     async function doSaveSettings () {
-		fetch(`${variables.url}/api/config`, {
+		fetch(`/api/config`, {
 			method: 'POST',
 			body: JSON.stringify(config),
             headers: { "Content-type": "application/json" }

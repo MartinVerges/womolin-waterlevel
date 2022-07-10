@@ -1,6 +1,7 @@
 import preprocess from 'svelte-preprocess';
 import adapter from '@sveltejs/adapter-static';
 
+const build_api_routes = process.env.VITE_BUILD_API === undefined || process.env.VITE_BUILD_API !== false;
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -9,22 +10,24 @@ const config = {
 		adapter: adapter({
 			pages: 'build',
 			assets: 'build',
-			fallback: 'index.html',
+			//fallback: 'index.html',
 			precompress: false
 		}),
 
+		trailingSlash: 'always',
+
 		routes: filepath => {
-			if (!filepath.startsWith('api/')) {
-				console.log(`[Enable route] ${filepath}`)
+			if (build_api_routes && filepath.startsWith('api/')) {
+				console.log(`[Disabled route] ${filepath}`)
 				return true
 			} else {
-				console.log(`[Disabled route] ${filepath}`)
+				console.log(`[Enabled route] ${filepath}`)
 				return true
 			}
 		},
 
 		prerender: {
-			default: false
+			default: true //false
 		},
 
 		vite: {

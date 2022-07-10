@@ -1,14 +1,19 @@
 /**
- *
- * Tanklevel Pressure Sensor
- * https://github.com/MartinVerges/rv-smart-tanksensor
- *
- * (c) 2022 Martin Verges
- *
+ * @file MQTTclient.h
+ * @author Martin Verges <martin@verges.cc>
+ * @brief MQTT client library
+ * @version 0.1
+ * @date 2022-05-29
+ * 
+ * @copyright Copyright (c) 2022 by the author alone
+ *            https://gitlab.womolin.de/martin.verges/waterlevel
+ * 
+ * License: CC BY-NC-SA 4.0
 **/
 
-#include <AsyncMqttClient.h>
 #include <Preferences.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 
 extern bool enableMqtt;
 
@@ -18,6 +23,7 @@ class MQTTclient {
         String mqttUser;
         String mqttPass;
         String mqttHost;
+        String mqttClientId;
         uint16_t mqttPort;
 
 		MQTTclient();
@@ -28,10 +34,9 @@ class MQTTclient {
         void prepare(String host, uint16_t port, String topic, String user, String pass);
         void registerEvents();
         void connect();
-        void disconnect(bool force = false);
+        void disconnect();
 
-        AsyncMqttClient client;
+        PubSubClient client;
+    private:
+        WiFiClient ethClient;
 };
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
-void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
