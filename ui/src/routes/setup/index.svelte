@@ -41,47 +41,45 @@
 </svelte:head>
 
 {#if setupSession}
-<div class="container">
-  <h4>Calibration - Step 1</h4>
-  <p>
-      We have to calibrate the sensor in order to use it propperly.
-      This usually only needs to be done once, insofar as you are not changing the tank.
-  </p>
-  <p>
-    Which sensor do you want to calibrate?
-  </p>
-  <p>
-    <select bind:value={selectedSensor} id="Sensor" class="form-select">
-        <option value="{undefined}" selected="selected">please select a Sensor</option>
-    {#each {length: numSensors} as _, i}
-        <option value="{(i+1)}">{(i+1)}. Sensor</option>
-    {/each}
-    </select>
-  </p>
-  {#if selectedSensor > 0}
-  <p>
-    Is it a tank that has been formed uniformly so that the water level rises linearly,
-    or does the tank have significant bulges, size changes, or other volume changes?
-  </p>
-  <div class="row">
-    <div class="col text-center" on:click={() => selectedShape = 1}>
-      <input type="radio" name="shape" value="{1}" bind:group={selectedShape} /><br>
-      <Fa icon={faRectangle} size="10x" />
-      <p>uniformly shaped</p>
-    </div>
-    <div class="col text-center" on:click={() => selectedShape = 2}>
-      <input type="radio" name="shape" value="{2}" bind:group={selectedShape} /><br>
-      <Fa icon={faTriangle} size="10x" />
-      <p>unevenly shaped</p>
-    </div>
+<h4>Calibration - Step 1</h4>
+<p>
+    We have to calibrate the sensor in order to use it propperly.
+    This usually only needs to be done once, insofar as you are not changing the tank.
+</p>
+<p>
+  Which sensor do you want to calibrate?
+</p>
+<p>
+  <select bind:value={selectedSensor} id="Sensor" class="form-select">
+      <option value="{undefined}" selected="selected">please select a Sensor</option>
+  {#each {length: numSensors} as _, i}
+      <option value="{(i+1)}">{(i+1)}. Sensor</option>
+  {/each}
+  </select>
+</p>
+{#if selectedSensor > 0}
+<p>
+  Is it a tank that has been formed uniformly so that the water level rises linearly,
+  or does the tank have significant bulges, size changes, or other volume changes?
+</p>
+<div class="row">
+  <div class="col text-center" on:click={() => selectedShape = 1}>
+    <input type="radio" name="shape" value="{1}" bind:group={selectedShape} /><br>
+    <Fa icon={faRectangle} size="10x" />
+    <p>uniformly shaped</p>
   </div>
-  {/if}
-  {#if selectedSensor > 0 && selectedShape > 0}
-  <p>
-    <Button on:click={loadNextStep} block>Start calibration</Button>
-  </p>
-  {/if}
+  <div class="col text-center" on:click={() => selectedShape = 2}>
+    <input type="radio" name="shape" value="{2}" bind:group={selectedShape} /><br>
+    <Fa icon={faTriangle} size="10x" />
+    <p>unevenly shaped</p>
+  </div>
 </div>
+{/if}
+{#if selectedSensor > 0 && selectedShape > 0}
+<p>
+  <Button on:click={loadNextStep} block>Start calibration</Button>
+</p>
+{/if}
 {:else}
 <h4>Loading, please wait...</h4>
 {/if}

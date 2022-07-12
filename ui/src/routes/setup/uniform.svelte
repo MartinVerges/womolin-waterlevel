@@ -28,12 +28,12 @@
       headers: { "Content-type": "application/json" }
     }).then(response => {
       if (response.ok) {
-        toast.push(`Settings successfully saved`, {
+        toast.push(`Calibration successfully saved`, {
           theme: variables.toast.success.theme,
           onpop: (id) => { window.location.href = '/'; }
         })
       } else {
-        toast.push(`Error ${response.status} ${response.statusText}<br>Unable to store new AP configuration.`, variables.toast.error)
+        toast.push(`Error ${response.status} ${response.statusText}<br>Unable to store new calibration.`, variables.toast.error)
       }
     }).catch(error => console.log(error))	
   }
@@ -57,44 +57,42 @@
 </svelte:head>
 
 {#if setupSession && setupSession.sensor > 0}
-<div class="container">
-  <h4>Calibration - Step 2 {#if setupSession.sensor > 0} of the sensor {setupSession.sensor}{/if}</h4>
-  <p>
-    You have chosen to calibrate the sensor in a uniformly shaped standard tank.
-  </p>
-  <p>
-    The calibration is performed by a measurement when the tank is empty and another measurement after the tank is completely filled.
-  </p>
-  <div class="row">
-    <div class="col-sm-9">
-      <Label for="lower">
-        Please make sure that the tank has been completely emptied and then press the button to determine the sensor value.
-      </Label>
-      <Input id="lower" bind:value={config.lower} type="number" />
-    </div>
-    <div class="col-sm-3">
-      <Button block class="h-100" on:click={()=>getCurrentRawValue('lower')}>Read current sensor value</Button>
-    </div>
+<h4>Calibration - Step 2 {#if setupSession.sensor > 0} of the sensor {setupSession.sensor}{/if}</h4>
+<p>
+  You have chosen to calibrate the sensor in a uniformly shaped standard tank.
+</p>
+<p>
+  The calibration is performed by a measurement when the tank is empty and another measurement after the tank is completely filled.
+</p>
+<div class="row">
+  <div class="col-sm-9">
+    <Label for="lower">
+      Please make sure that the tank has been completely emptied and then press the button to determine the sensor value.
+    </Label>
+    <Input id="lower" bind:value={config.lower} type="number" />
   </div>
-  <br>
-  <div class="row">
-    <div class="col-sm-9">
-      <Label for="upper">
-        Fill the tank to the maximum, wait a short moment for the water to settle, and then press the button.
-      </Label>
-      <Input id="upper" bind:value={config.upper} type="number" />
-    </div>
-    <div class="col-sm-3">
-      <Button block class="h-100" on:click={()=>getCurrentRawValue('upper')}>Read current sensor value</Button>
-    </div>
+  <div class="col-sm-3">
+    <Button block class="h-100" on:click={()=>getCurrentRawValue('lower')}>Read current sensor value</Button>
   </div>
-  <br>
-{#if config.lower && config.upper}
-  <p>
-    <Button on:click={exitCalibration} block>Save and Exit calibration</Button>
-  </p>
-{/if}
 </div>
+<br>
+<div class="row">
+  <div class="col-sm-9">
+    <Label for="upper">
+      Fill the tank to the maximum, wait a short moment for the water to settle, and then press the button.
+    </Label>
+    <Input id="upper" bind:value={config.upper} type="number" />
+  </div>
+  <div class="col-sm-3">
+    <Button block class="h-100" on:click={()=>getCurrentRawValue('upper')}>Read current sensor value</Button>
+  </div>
+</div>
+<br>
+{#if config.lower && config.upper}
+<p>
+  <Button on:click={exitCalibration} block>Save and Exit calibration</Button>
+</p>
+{/if}
 {:else if setupSession}
 <h4>Unknown state, please restart calibration.</h4>
 {:else}
