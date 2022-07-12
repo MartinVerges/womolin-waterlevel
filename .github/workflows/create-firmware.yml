@@ -40,6 +40,6 @@ jobs:
     - name: 'Upload spiffs Artifact'
       uses: actions/upload-artifact@v2
       with:
-        name: spiffs.bin
+        name: littlefs.bin
         path: |
           ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin
