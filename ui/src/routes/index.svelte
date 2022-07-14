@@ -12,7 +12,9 @@
     // ******* SHOW LEVEL ******** //
     let level = {};
     async function getCurrentLevel() {
-        const response = await fetch(`/api/level/current/all`).catch(error => console.log(error));
+        const response = await fetch(`/api/level/current/all`, {
+            headers: { "Content-type": "application/json" }
+        }).catch(error => console.log(error));
         if(response.ok) level = await response.json();
         else {
             toast.push(`Error ${response.status} ${response.statusText}<br>Unable to request current level.`, variables.toast.error)

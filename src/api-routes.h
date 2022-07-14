@@ -63,21 +63,6 @@ void APIRegisterRoutes() {
     ESP.restart();
   });
 
-
-  webServer.on("/api/level/current", HTTP_GET, [&](AsyncWebServerRequest *request) {
-    uint8_t lm = 1;
-    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
-    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
-
-    if (request->contentType() == "application/json") {
-      String output;
-      StaticJsonDocument<16> doc;
-      doc["levelPercent"] = LevelManagers[lm-1]->getCalculatedPercentage(true);
-      serializeJson(doc, output);
-      request->send(200, "application/json", output);
-    } else request->send(200, "text/plain", (String)LevelManagers[lm-1]->getCalculatedPercentage(true));
-  });
-
   webServer.on("/api/level/data", HTTP_GET, [&](AsyncWebServerRequest *request) {
     uint8_t lm = 1;
     if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
