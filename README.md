@@ -1,6 +1,6 @@
-# rv-smart-tanksensor
+# womolin.tanklevel
 
-DIY project to build a smart fuel sensor for RVs or in other projects.
+DIY project to build a smart tank level sensor for RVs or in other projects.
 It is based on air pressure and is able to measure fresh water as well as grey and black water levels with high precision.
 
 This project is still in development, it's a working sensor and I'm happy about pull requests to add more functionality, improve existing ones or just feedback.
@@ -9,7 +9,8 @@ This project is still in development, it's a working sensor and I'm happy about 
 
 After I have long found on the market for camping nothing that is on the one hand affordable and on the other hand also technically good, I have started the development of my own tank sensor.
 
-Thanks to the ESP32 this can be queried in the future directly via WLAN or Bluetooth (work in progress). 
+Thanks to the ESP32 this can be queried directly via WLAN or Bluetooth.
+In addition MQTT, the sensor value can be pushed into an MQTT broker.
 
 ## Focus of this Project
 
@@ -18,7 +19,7 @@ The following aspects are the focus of this project:
  * Easy to use and rebuild
  * Precise in the evaluation of the data
  * Stand alone usable
- * Usable in all liquids
+ * Usable in all type of liquids
 
 ## Show me how it looks
 
@@ -44,12 +45,15 @@ The 3D printed housing can be found on [onshape as a editable document](https://
 
 To build this sensor yourself, you need:
 
- * 1x ESP32 ESP32-WROOM-32 (between 1.75€ and 8.00€)
+ * 1x ESP32 ESP32-WROOM-32 (~5.00€)
  * 1x MPX53DP Pressure Sensor (~8.00€)
  * 1x HX711 24-bit ADC (~2.50€)
  * 1x Pushbutton (~0.15€)
+ * 1x Tube with 20mm outher dimension (~1€)
+ * 1x Tube with 3mm inner width (~1€)
  * 1x Tube with 4mm inner width (~1€) 
- * 1x Small 12V to 3.3V power supply (~1€)
+ * 1x Small 12V to 5V power supply (~1€)
+ * 1x PG screw fitting in the dimension for the 20mm tube
  * 1x Connector for the Tank itself, strongly depending on your individual situation
  
  In addition you need some few small cables and soldering equipment to build the circuit.
@@ -61,33 +65,56 @@ To build this sensor yourself, you need:
 
 ```
     # Change directory into the code folder
-    > cd rv-smart-tanksensor
+    > cd womolin.tanklevel
 
     # Build project
-    > platformio run
+    > platformio run -e esp32dev
 
     # Upload firmware
-    > platformio run --target upload
+    > platformio run -e esp32dev --target upload
+```
+
+## How to build the UI
+
+As I haven't found good icons with a free license, I choosed the pro version of fontawesome.
+Therefore it's required to have a valid subscription in order to build the UI yourself.
+On github, the resulting `littlefs.bin` is generated with a valid subscription.
+Please feel free to take this one for your sensor.
+
+Set your FontAweSome key:
+```
+npm config set "@fortawesome:registry" https://npm.fontawesome.com/
+npm config set "//npm.fontawesome.com/:_authToken" XXXXXXXXXXXXXXXXXXXX
+```
+
+Build the UI:
+```
+cd ui
+npm install
+npm run build
+cd ..
+pio run -e esp32dev -t buildfs
 ```
 
 ## Operation
 
 When the sensor is started for the first time, a WiFi configuration portal opens via which a connection to the central access point can be established.
-As soon as the connection has been established, the sensor is available on the IP assigned by the DHCP and the hostname [tanksensor.local](http://tanksensor.local) provided by MDNS.
+As soon as the connection has been established, the sensor is available on the IP assigned by the DHCP and the hostname [tanklevel.local](http://tanklevel.local) provided by MDNS.
 You can now log in to the webobverface and proceed with the sensor setup. 
-To obtain a tank level, it is necessary to measure the tank. This can be done in 2 different ways:
+To obtain a tank level, it is necessary to measure the tank.
+This can be done in 2 different ways:
 
 1) Uniformly shaped tanks whose water level rises evenly.
-2) Irregular shaped tanks that contain bulges, tapers or other complex shapes.
+2) Unevenly shaped tanks that contain bulges, tapers or other complex shapes.
 
 ### Uniform
 
-Install the Sensor in an empty Tank, navigate to the [setup](http://tanksensor.local/setup-uniform.html).
+Install the Sensor in an empty Tank, navigate to the [setup](http://tanklevel.local/setup/).
 Press the button to determine the lower value of the tank. The value then appears in the input field. 
 
-### Irregular
+### Unevenly
 
-Install the Sensor in an empty Tank, navigate to the [setup](http://tanksensor.local/setup-irregular.html).
+Install the Sensor in an empty Tank, navigate to the [setup](http://tanklevel.local/setup/).
 Prepare everything to achieve a constant inflow into the tank.
 The best way to do this is to use water connections to city networks with a larger cross-section.
 Refueling through this water connection should be done within about 3 minutes.
@@ -118,13 +145,6 @@ The button on the device switches from Powersave to Wifi Mode.
 When the button is pressed again, the sensor restarts and opens its own access point.
 Here you can correct the WLAN data.
 
-## API to the Sensor
-
-All provided RESTful APIs have been documented using the free [Insomnia software](https://insomnia.rest/).
-You can import the collection file called [Insomnia_api_spec.json](/Insomnia_api_spec.json?raw=true) and find all available API endpoints and run and test them directly.
-
-<img src="images/api.png?raw=true" alt="Insomnia API description" width="40%">
-
 ## Alternatives
 
 ### Pressure based (like this project)
@@ -140,9 +160,10 @@ These probes usually cost more than the components in this project, but are extr
 
 # License
 
-rv-smart-tanksensor (c) by Martin Verges.
+womolin.tanklevel (c) by Martin Verges.
 
-rv-smart-tanksensor is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+This Project is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 
 You should have received a copy of the license along with this work.
 If not, see <http://creativecommons.org/licenses/by-nc-sa/4.0/>.
+
