@@ -47,6 +47,11 @@ extern "C" {
 #include "ble.h"
 #include "dac.h"
 
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085_U.h>
+Adafruit_BMP085_Unified bmp180 = Adafruit_BMP085_Unified(10085);
+
+
 void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
 }
@@ -141,6 +146,7 @@ void setup() {
 
   Serial.begin(115200);
   Serial.setDebugOutput(true);
+
   Serial.println(F("\n\n==== starting ESP32 setup() ===="));
 
   print_wakeup_reason();
@@ -150,10 +156,7 @@ void setup() {
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, ISR_button1, FALLING);
   Serial.println(F("done"));
-  
-  Wire.begin(GPIO_NUM_5, GPIO_NUM_18);
-  myBMP.begin(BMP085_ULTRAHIGHRES, &Wire);
-
+    
   if (!LittleFS.begin(true)) {
     Serial.println(F("[FS] An Error has occurred while mounting LittleFS"));
     // Reduce power consumption while having issues with NVS
@@ -161,8 +164,15 @@ void setup() {
     deepsleepForSeconds(5);
   }
   if (!preferences.begin(NVS_NAMESPACE)) preferences.clear();
+  Serial.println(F("[LITTLEFS] initialized"));
 
-  uint32_t currentPressure = myBMP.readPressure();
+  bmp180.begin();
+
+  float currentPressure = 0.f;
+  sensors_event_t event;
+  bmp180.getEvent(&event);
+  if (event.pressure) currentPressure = event.pressure; // hPa
+
   for (uint8_t i=0; i < LEVELMANAGERS; i++) {
     LevelManagers[i]->setAirPressure(currentPressure);
     LevelManagers[i]->begin((String(NVS_NAMESPACE) + String("s") + String(i)).c_str());
@@ -233,10 +243,14 @@ void loop() {
     if (enableWifi && WiFi.status() == WL_CONNECTED && WiFi.getMode() & WIFI_MODE_STA) {
       if (enableMqtt && !Mqtt.isConnected()) Mqtt.connect();
     }
+
     // Update air pressure value on all levelmanagers
-    uint32_t currentPressure = myBMP.readPressure();
-    for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-      LevelManagers[i]->setAirPressure(currentPressure);
+    sensors_event_t event;
+    bmp180.getEvent(&event);
+    if (event.pressure) {
+      for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+        LevelManagers[i]->setAirPressure(event.pressure);
+      }
     }
   }
   
@@ -259,37 +273,57 @@ void loop() {
   if (!setup && runtime() - Timing.lastSensorRead > Timing.sensorInterval) {
     Timing.lastSensorRead = runtime();
 
-    int level;
+    String jsonOutput;
+    StaticJsonDocument<1024> jsonDoc;
+
+    sensors_event_t event;
+    bmp180.getEvent(&event);
+    float temperature;
+    bmp180.getTemperature(&temperature);
+
     for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-      level = -1;
       if (LevelManagers[i]->isConfigured()) {
-        level = LevelManagers[i]->getCalculatedPercentage();
+        uint8_t level = LevelManagers[i]->getCalculatedPercentage();
+        float sensorPressure = LevelManagers[i]->getSensorRawMedianReading(true);
+
         String ident = String("level") + String(i);
         if (enableDac) dacValue(i+1, level);
         if (enableBle) updateBleCharacteristic(level);  // FIXME: need to manage multiple levels
         if (enableMqtt && Mqtt.isReady()) {
-          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), 0, true, String(level).c_str());
-          Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), 0, true, String(LevelManagers[i]->getSensorRawMedianReading(true)).c_str());
-          Mqtt.client.publish((Mqtt.mqttTopic + "/airPressure" + String(i+1)).c_str(), 0, true, String(myBMP.readPressure()).c_str());
-
-          float alt = myBMP.readAltitude();
-          Mqtt.client.publish((Mqtt.mqttTopic + "/temperature" + String(i+1)).c_str(), String(myBMP.readTemperature()).c_str(), true);
-          Mqtt.client.publish((Mqtt.mqttTopic + "/pressure" + String(i+1)).c_str(), String(myBMP.readPressure()).c_str(), true);
-          Mqtt.client.publish((Mqtt.mqttTopic + "/sealevelpressure" + String(i+1)).c_str(), String(myBMP.readSealevelPressure(alt)).c_str(), true);
-          Mqtt.client.publish((Mqtt.mqttTopic + "/altitude" + String(i+1)).c_str(), String(alt).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), String(level).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), String(sensorPressure).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/airPressure" + String(i+1)).c_str(), String(event.pressure).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/temperature" + String(i+1)).c_str(), String(temperature).c_str(), true);
         }
+
+        jsonDoc[i]["id"] = i;
+        jsonDoc[i]["level"] = level;
+        jsonDoc[i]["sensorPressure"] = sensorPressure;
+        jsonDoc[i]["airPressure"] = event.pressure;
+        jsonDoc[i]["temperature"] = temperature;
+
         Serial.printf("[SENSOR] Current level of %d. sensor is %d%% (raw %d, calculated %d)\n",
           i+1, level, (int)LevelManagers[i]->getSensorRawMedianReading(true), LevelManagers[i]->getCalulcatedMedianReading(true)
         );
       } else {
         if (enableDac) dacValue(i+1, 0);
         if (enableBle) updateBleCharacteristic(0);  // FIXME
-        level = LevelManagers[i]->getCalulcatedMedianReading();
+        int tmp = LevelManagers[i]->getCalulcatedMedianReading();
+
+        jsonDoc[i]["id"] = i;
+        jsonDoc[i]["sensorValue"] = tmp;
+        jsonDoc[i]["airPressure"] = event.pressure;
+        jsonDoc[i]["temperature"] = temperature;
+
         Serial.printf("[SENSOR] Sensor %d not configured, please run the setup! (raw %d, calculated %d)\n",
           i+1, (int)LevelManagers[i]->getSensorRawMedianReading(true), LevelManagers[i]->getCalulcatedMedianReading(true)
         );
       }
     }
+
+    serializeJsonPretty(jsonDoc, jsonOutput);
+    events.send(jsonOutput.c_str(), "status", millis());
+    //Serial.println(jsonOutput);
   }
   sleepOrDelay();
 }

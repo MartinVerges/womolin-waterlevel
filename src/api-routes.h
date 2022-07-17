@@ -83,6 +83,14 @@ void APIRegisterRoutes() {
   });
 
 ///////////////////////////////////////////////////////////
+  events.onConnect([&](AsyncEventSourceClient *client){
+    if(client->lastId()){
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+    }
+    client->send("connected", NULL, millis(), 1000);
+  });
+  webServer.addHandler(&events);
+
   webServer.on("/api/rawvalue", HTTP_GET, [&](AsyncWebServerRequest *request) {
     uint8_t lm = 1;
     if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();

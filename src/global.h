@@ -25,8 +25,6 @@
 
 #include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_BMP085.h>
-Adafruit_BMP085 myBMP;
 
 RTC_DATA_ATTR struct timing_t {
   // Check Services like MQTT, ...
@@ -71,6 +69,7 @@ String hostName;
 uint32_t blePin;
 DNSServer dnsServer;
 AsyncWebServer webServer(webserverPort);
+AsyncEventSource events("/events");
 Preferences preferences;
 
 MQTTclient Mqtt;
