@@ -23,6 +23,15 @@ extern bool enableBle;
 extern bool enableMqtt;
 extern bool enableDac;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+uint8_t temprature_sens_read();
+#ifdef __cplusplus
+}
+#endif
+uint8_t temprature_sens_read();
+
 void APIRegisterRoutes() {
   /* not in use
   webServer.on("/api/setCurrentValueAsOffset", HTTP_POST, [&](AsyncWebServerRequest *request) {
@@ -305,16 +314,60 @@ void APIRegisterRoutes() {
     request->send(200, "application/json", output);
   });
 
-  webServer.on("/api/esp/heap", HTTP_GET, [&](AsyncWebServerRequest * request) {
-    request->send(200, "text/plain", String(ESP.getFreeHeap()));
-  });
+  webServer.on("/api/esp", HTTP_GET, [&](AsyncWebServerRequest * request) {
+    String output;
+    DynamicJsonDocument json(2048);
 
-  webServer.on("/api/esp/cores", HTTP_GET, [&](AsyncWebServerRequest * request) {
-    request->send(200, "text/plain", String(ESP.getChipCores()));
-  });
+    json["rebootReason"] = esp_reset_reason();
 
-  webServer.on("/api/esp/freq", HTTP_GET, [&](AsyncWebServerRequest * request) {
-    request->send(200, "text/plain", String(ESP.getCpuFreqMHz()));
+    JsonObject build = json.createNestedObject("build");
+    build["date"] = __DATE__;
+    build["time"] = __TIME__;
+
+    JsonObject ram = json.createNestedObject("ram");
+    ram["heapSize"] = ESP.getHeapSize();
+    ram["freeHeap"] = ESP.getFreeHeap();
+    ram["usagePercent"] = (float)ESP.getFreeHeap() / (float)ESP.getHeapSize() * 100.f;
+    ram["minFreeHeap"] = ESP.getMinFreeHeap();
+    ram["maxAllocHeap"] = ESP.getMaxAllocHeap();
+
+    JsonObject spi = json.createNestedObject("spi");
+    spi["psramSize"] = ESP.getPsramSize();
+    spi["freePsram"] = ESP.getFreePsram();
+    spi["minFreePsram"] = ESP.getMinFreePsram();
+    spi["maxAllocPsram"] = ESP.getMaxAllocPsram();
+
+    JsonObject chip = json.createNestedObject("chip");
+    chip["revision"] = ESP.getChipRevision();
+    chip["model"] = ESP.getChipModel();
+    chip["cores"] = ESP.getChipCores();
+    chip["cpuFreqMHz"] = ESP.getCpuFreqMHz();
+    chip["cycleCount"] = ESP.getCycleCount();
+    chip["sdkVersion"] = ESP.getSdkVersion();
+    chip["efuseMac"] = ESP.getEfuseMac();
+    chip["temperature"] = (temprature_sens_read() - 32) / 1.8;
+
+    JsonObject flash = json.createNestedObject("flash");
+    flash["flashChipSize"] = ESP.getFlashChipSize();
+    flash["flashChipRealSize"] = spi_flash_get_chip_size();
+    flash["flashChipSpeedMHz"] = ESP.getFlashChipSpeed() / 1000000;
+    flash["flashChipMode"] = ESP.getFlashChipMode();
+    flash["sdkVersion"] = ESP.getFlashChipSize();
+
+    JsonObject sketch = json.createNestedObject("sketch");
+    sketch["size"] = ESP.getSketchSize();
+    sketch["maxSize"] = ESP.getFreeSketchSpace();
+    sketch["usagePercent"] = (float)ESP.getSketchSize() / (float)ESP.getFreeSketchSpace() * 100.f;
+    sketch["md5"] = ESP.getSketchMD5();
+
+    JsonObject fs = json.createNestedObject("filesystem");
+    fs["type"] = F("LittleFS");
+    fs["totalBytes"] = LittleFS.totalBytes();
+    fs["usedBytes"] = LittleFS.usedBytes();
+    fs["usagePercent"] = (float)LittleFS.usedBytes() / (float)LittleFS.totalBytes() * 100.f;
+    
+    serializeJson(json, output);
+    request->send(200, "application/json", output);
   });
 
   webServer.serveStatic("/", LittleFS, "/")
