@@ -29,6 +29,8 @@
 #include <AsyncTCP.h>
 #include <Preferences.h>
 #include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 
 // Power Management
 #include <driver/rtc_io.h>
@@ -124,9 +126,10 @@ void initWifiAndServices() {
   Serial.println(F("[WEB] HTTP server started"));
 
   if (enableWifi) {
-    Serial.println("[MDNS] Starting mDNS Service!");
+    Serial.printf("[MDNS] Starting mDNS Service! Hostname is '%s'.\n", hostName);
     MDNS.begin(hostName.c_str());
     MDNS.addService("http", "tcp", 80);
+    MDNS.addService("ota", "udp", 3232);
   }
 
   if (enableMqtt) {
@@ -194,7 +197,41 @@ void setup() {
 
   if (enableBle) createBleServer(hostName);
   else Serial.println(F("[BLE] Bluetooth low energy is disabled."));
-  
+
+  String otaPassword = preferences.getString("otaPassword");
+  if (otaPassword.isEmpty()) {
+    otaPassword = String((uint32_t)ESP.getEfuseMac());
+    preferences.putString("otaPassword", otaPassword);
+  }
+  Serial.printf("[OTA] Password set to '%s'\n", otaPassword);
+  ArduinoOTA
+    .setPassword(otaPassword.c_str())
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH) type = "sketch";
+      else {
+        type = "filesystem";
+        LittleFS.end();
+      }
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+
+  ArduinoOTA.begin();
+
   preferences.end();
 
   for (uint8_t i=0; i < LEVELMANAGERS; i++) {
@@ -218,6 +255,8 @@ void softReset() {
 }
 
 void loop() {
+  ArduinoOTA.handle();
+
   if (button1.pressed) {
     Serial.println(F("[EVENT] Button pressed!"));
     button1.pressed = false;
