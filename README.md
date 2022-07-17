@@ -27,12 +27,16 @@ The following aspects are the focus of this project:
 [![Live video demonstration](https://img.youtube.com/vi/gYvKPjnI3uc/0.jpg)](https://www.youtube.com/watch?v=gYvKPjnI3uc)
 
 #### Screenshots from the mobile UI
-<img src="images/level.png?raw=true" alt="Live level view" width="20%"><img src="images/config.png?raw=true" alt="Settings" width="20%"><img src="images/setup.png?raw=true" alt="Setup" width="20%"><img src="images/setup-uniform.png?raw=true" alt="Setup for linear tanks" width="20%"><img src="images/setup-irregular.png?raw=true" alt="Setup for irregular formed tanks" width="20%">
+<img src="images/status.png?raw=true" alt="Status" width="20%"><img src="images/setup.png?raw=true" alt="Calibration" width="20%"><img src="images/setup-uniform2.png?raw=true" alt="Uniform calibration" width="20%"><img src="images/config.png?raw=true" alt="Configuration" width="20%"><img src="images/wifi.png?raw=true" alt="Wifi Management" width="20%">
 
 #### Photos of the prototype
-<img src="images/prototype1.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype2.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype3.jpg?raw=true" alt="Prototype Pictures" width="30%">
+<img src="images/prototype1.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/prototype2.jpg?raw=true" alt="Prototype Pictures" width="30%"><img src="images/mounting.jpg?raw=true" alt="Mounting" width="30%">
 
 <img src="images/prototype-housing1.jpg?raw=true" alt="Prototype inside the housing" width="30%"><img src="images/prototype-housing2.jpg?raw=true" alt="Prototype inside the housing" width="30%">
+
+#### Photos of the immersion tube
+
+<img src="images/immersiontube1.jpg?raw=true" alt="immersion tube" width="30%"><img src="images/immersiontube2.jpg?raw=true" alt="immersion tube" width="30%"><img src="images/immersiontube3.jpg?raw=true" alt="immersion tube" width="30%">
 
 #### Schematics
 <img src="images/schematic.png?raw=true" alt="Schematic" width="40%">
