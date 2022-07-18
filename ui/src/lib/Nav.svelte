@@ -8,6 +8,7 @@
     import { faWifi } from '@fortawesome/pro-solid-svg-icons/faWifi';
     import { faGear } from '@fortawesome/pro-solid-svg-icons/faGear';
     import { faWater } from '@fortawesome/pro-solid-svg-icons/faWater';
+    import { faFileImport } from '@fortawesome/pro-solid-svg-icons/faFileImport';
     import { page } from '$app/stores';
     let path;
     $: path = $page.url.pathname;
@@ -38,6 +39,11 @@
             <li>
               <a href="/settings/" class="nav-link {path === '/settings/' ? 'text-secondary' : 'text-white'}">
                 <Fa icon={faGear} size="lg" class="bi d-block mx-auto mb-1" />Settings
+              </a>
+            </li>
+            <li>
+              <a href="/update/" class="nav-link {path === '/update/' ? 'text-secondary' : 'text-white'}">
+                <Fa icon={faFileImport} size="lg" class="bi d-block mx-auto mb-1" />Update
               </a>
             </li>
           </ul>

@@ -13,7 +13,17 @@ export async function get({request}) {
             "mqttpass": "abcd1234",
             "mqttport": 1883,
             "mqtttopic": "freshwater",
-            "mqttuser": "freshwater"
+            "mqttuser": "freshwater",
+            "otaPassword": "0123456789"
+        }
+    }
+}
+
+export async function post({request}) {
+    return {
+        status: 200,
+        body: {
+            "message": "success"
         }
     }
 }

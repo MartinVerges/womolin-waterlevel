@@ -59,23 +59,23 @@
   <title>Sensor Status</title>
 </svelte:head>
 
-<div class="container">
-    <div class="row">
-    {#if level == undefined}
-        <div class="col">Requesting current level, please wait...</div>
-    {:else}
-        {#each {length: level.length} as _, i}
-        <div class="col-sm-12">Current level of tank sensor {(i+1)}</div>
-        <div class="col-sm-9">
-            <Progress animated value={level[i]} style="height: 5rem;">{level[i]}%</Progress>
-        </div>
-        <div class="col-sm-3">
-            <Button on:click={()=>repressurizeTube(i+1)} block style="height: 5rem;">
-                {#if isVisible}<div out:fade={{ delay: 5000 }}><Fa icon={faSync} size="2x" spin />&nbsp;</div>{/if}
-                Repressurize
-            </Button>
-        </div>
-        {/each}
-    {/if}
-    </div>
+<div class="row">
+{#if level == undefined}
+  <div class="col">Requesting current level, please wait...</div>
+{:else if level.length == 0}
+<div class="col">Please calibrate your Sensor...</div>
+{:else}
+  {#each {length: level.length} as _, i}
+  <div class="col-sm-12">Current level of tank sensor {(i+1)}</div>
+  <div class="col-sm-9">
+    <Progress animated value={level[i]} style="height: 5rem;">{level[i]}%</Progress>
+  </div>
+  <div class="col-sm-3">
+    <Button on:click={()=>repressurizeTube(i+1)} block style="height: 5rem;">
+      {#if isVisible}<div out:fade={{ delay: 5000 }}><Fa icon={faSync} size="2x" spin />&nbsp;</div>{/if}
+      Repressurize
+    </Button>
+  </div>
+  {/each}
+{/if}
 </div>

@@ -17,6 +17,8 @@
 #include <FS.h>
 #include <LittleFS.h>
 #include "ble.h"
+#include <Update.h>
+#include <esp_ota_ops.h>
 
 extern bool enableWifi;
 extern bool enableBle;
@@ -92,6 +94,78 @@ void APIRegisterRoutes() {
   });
 
 ///////////////////////////////////////////////////////////
+  webServer.on("/api/firmware/info", HTTP_GET, [&](AsyncWebServerRequest *request) {
+    auto data = esp_ota_get_running_partition();
+    String output;
+    StaticJsonDocument<16> doc;
+    doc["partition_type"] = data->type;
+    doc["partition_subtype"] = data->subtype;
+    doc["address"] = data->address;
+    doc["size"] = data->size;
+    doc["label"] = data->label;
+    doc["encrypted"] = data->encrypted;
+    serializeJson(doc, output);
+    request->send(500, "application/json", output);
+  });
+
+  webServer.on("/api/update/upload", HTTP_POST,
+    [&](AsyncWebServerRequest *request) { },
+    [&](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+
+    String otaPassword = "";
+    if (preferences.begin(NVS_NAMESPACE, true)) {
+      otaPassword = preferences.getString("otaPassword");
+      preferences.end();
+
+      if (otaPassword.length()) {
+        if(!request->authenticate("ota", otaPassword.c_str())) {
+          return request->send(401, "application/json", "{\"message\":\"Invalid OTA password provided!\"}");
+        }
+      } else Serial.println(F("[OTA] No password configured, no authentication requested!"));
+    } else Serial.println(F("[OTA] Unable to load password from NVS."));
+
+    if (!index) {
+      Serial.print(F("[OTA] Begin firmware update with filename: "));
+      Serial.println(filename);
+      // if filename includes spiffs|littlefs, update the spiffs|littlefs partition
+      int cmd = (filename.indexOf("spiffs") > -1 || filename.indexOf("littlefs") > -1) ? U_SPIFFS : U_FLASH;
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd)) {
+        Serial.print(F("[OTA] Error: "));
+        Update.printError(Serial);
+        request->send(500, "application/json", "{\"message\":\"Unable to begin firmware update!\"}");
+      }
+    }
+
+    if (Update.write(data, len) != len) {
+      Serial.print(F("[OTA] Error: "));
+      Update.printError(Serial);
+      request->send(500, "application/json", "{\"message\":\"Unable to write firmware update data!\"}");
+    }
+
+    if (final) {
+      if (!Update.end(true)) {
+        String output;
+        StaticJsonDocument<16> doc;
+        doc["message"] = "Update error";
+        doc["error"] = Update.errorString();
+        serializeJson(doc, output);
+        request->send(500, "application/json", output);
+
+        Serial.println("[OTA] Error when calling calling Update.end().");
+        Update.printError(Serial);
+      } else {
+        Serial.println("[OTA] Firmware update successful.");
+        request->send(200, "application/json", "{\"message\":\"Please wait while the device reboots!\"}");
+        yield();
+        delay(250);
+
+        Serial.println("[OTA] Update complete, rebooting now!");
+        Serial.flush();
+        ESP.restart();
+      }
+    }
+  });
+
   events.onConnect([&](AsyncEventSourceClient *client){
     if(client->lastId()){
       Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
@@ -173,6 +247,8 @@ void APIRegisterRoutes() {
         enableDac = jsonBuffer["enabledac"].as<boolean>();
       }
 
+      preferences.putString("otaPassword", jsonBuffer["otaPassword"].as<String>());
+
       // MQTT Settings
       preferences.putUInt("mqttPort", jsonBuffer["mqttport"].as<uint16_t>());
       preferences.putString("mqttHost", jsonBuffer["mqtthost"].as<String>());
@@ -210,6 +286,8 @@ void APIRegisterRoutes() {
         doc["enablesoftap"] = WifiManager.getFallbackState();
         doc["enableble"] = enableBle;
         doc["enabledac"] = enableDac;
+
+        doc["otaPassword"] = preferences.getString("otaPassword");
 
         // MQTT
         doc["enablemqtt"] = enableMqtt;

@@ -126,10 +126,11 @@ void initWifiAndServices() {
   Serial.println(F("[WEB] HTTP server started"));
 
   if (enableWifi) {
-    Serial.printf("[MDNS] Starting mDNS Service! Hostname is '%s'.\n", hostName);
+    Serial.println(F("[MDNS] Starting mDNS Service!"));
     MDNS.begin(hostName.c_str());
     MDNS.addService("http", "tcp", 80);
     MDNS.addService("ota", "udp", 3232);
+    Serial.printf("[MDNS] You should be able now to open http://%s.local/ in your browser.\n", hostName);
   }
 
   if (enableMqtt) {
@@ -151,6 +152,7 @@ void setup() {
   Serial.setDebugOutput(true);
 
   Serial.println(F("\n\n==== starting ESP32 setup() ===="));
+  Serial.printf("Firmware build date: %s %s\n", __DATE__, __TIME__);
 
   print_wakeup_reason();
   Serial.printf("[SETUP] Configure ESP32 to sleep for every %d Seconds\n", TIME_TO_SLEEP);
