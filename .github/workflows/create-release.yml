@@ -25,24 +25,67 @@ jobs:
     - name: 'Installing platformio'
       run: pip3 install -U platformio
 
-    - name: 'Building a firmware for ESP32'
+    - name: Building a firmware for ESP32
       run: |
         pio run -e esp32dev
         pio run -e esp32dev -t buildfs
 # produces ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
 # produces ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin
+# produces ${{ github.workspace }}/.pio/build/esp32dev/partitions.bin
+# produces ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
+# produces ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
 
     - name: 'Upload firmware Artifact'
       uses: actions/upload-artifact@v2
       with:
         name: firmware.bin
-        path: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
-
-    - name: 'Upload spiffs Artifact'
+        path: |
+          ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
+          
+    - name: 'Upload littlefs Artifact'
       uses: actions/upload-artifact@v2
       with:
-        name: spiffs.bin
-        path: ${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
+        name: littlefs.bin
+        path: |
+          ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin
+          
+    - name: 'Upload partitions Artifact'
+      uses: actions/upload-artifact@v2
+      with:
+        name: partitions.bin
+        path: |
+          ${{ github.workspace }}/.pio/build/esp32dev/partitions.bin
+          
+    - name: 'Upload partitions Artifact'
+      uses: actions/upload-artifact@v2
+      with:
+        name: bootloader_dio_80m.bin
+        path: |
+          ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
+          
+    - name: 'Upload partitions Artifact'
+      uses: actions/upload-artifact@v2
+      with:
+        name: boot_app0.bin
+        path: |
+          ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+          
+    - name: Upload to S3
+      run: |
+        echo "host_base = s3.womolin.de" > ~/.s3cfg
+        echo "host_bucket = s3.womolin.de" >> ~/.s3cfg
+        echo "bucket_location = de-fra" >> ~/.s3cfg
+        echo "use_https = True" >> ~/.s3cfg
+        echo "access_key = ${{ secrets.S3_ACCESS_KEY }}" >> ~/.s3cfg
+        echo "secret_key = ${{ secrets.S3_SECRET_KEY }}" >> ~/.s3cfg
+        echo "signature_v2 = False" >> ~/.s3cfg
+        sudo apt -y update
+        sudo apt -y install s3cmd
+        s3cmd put ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin s3://webinstaller/waterlevel-release/
+        s3cmd put ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin s3://webinstaller/waterlevel-release/
+        s3cmd put ${{ github.workspace }}/.pio/build/esp32dev/partitions.bin s3://webinstaller/waterlevel-release/
+        s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://webinstaller/waterlevel-release/
+        s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://webinstaller/waterlevel-release/
 
     - name: 'Create Release'
       id: create_release
@@ -52,7 +95,7 @@ jobs:
       with:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
-        file: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin;${{ github.workspace }}/.pio/build/esp32dev/spiffs.bin
+        file: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin;${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin;${{ github.workspace }}/.pio/build/esp32dev/partitions.bin;~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin;~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
         body: |
           Firmware release
         draft: false
@@ -67,11 +110,39 @@ jobs:
         asset_path: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
         asset_name: firmware.bin
 
-    - name: 'Upload spiffs Artifact to release'
+    - name: 'Upload littlefs Artifact to release'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin
-        asset_name: spiffs.bin
+        asset_name: littlefs.bin
+
+    - name: 'Upload partitions Artifact to release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ github.workspace }}/.pio/build/esp32dev/partitions.bin
+        asset_name: partitions.bin
+
+    - name: 'Upload bootloader_dio_80m Artifact to release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
+        asset_name: bootloader_dio_80m.bin
+
+    - name: 'Upload boot_app0 Artifact to release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+        asset_name: boot_app0.bin
+
