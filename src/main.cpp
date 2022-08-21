@@ -25,6 +25,8 @@
 #undef USE_LittleFS
 #define USE_LittleFS true
 
+#include "log.h"
+
 #include <Arduino.h>
 #include <AsyncTCP.h>
 #include <Preferences.h>
@@ -53,6 +55,8 @@ extern "C" {
 #include <Adafruit_BMP085_U.h>
 Adafruit_BMP085_Unified bmp180 = Adafruit_BMP085_Unified(10085);
 bool bmp180_found = false;
+
+WebSerialClass WebSerial;
 
 void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
@@ -86,7 +90,7 @@ void sleepOrDelay() {
     esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
 
     preferences.end();
-    Serial.println(F("[POWER] Sleeping..."));
+    LOG_INFO_LN(F("[POWER] Sleeping..."));
     esp_deep_sleep_start();
   }
 }
@@ -97,21 +101,21 @@ void print_wakeup_reason() {
 
   switch(wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0 : 
-      Serial.println(F("[POWER] Wakeup caused by external signal using RTC_IO"));
+      LOG_INFO_LN(F("[POWER] Wakeup caused by external signal using RTC_IO"));
       button1.pressed = true;
     break;
-    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println(F("[POWER] Wakeup caused by external signal using RTC_CNTL")); break;
+    case ESP_SLEEP_WAKEUP_EXT1 : LOG_INFO_LN(F("[POWER] Wakeup caused by external signal using RTC_CNTL")); break;
     case ESP_SLEEP_WAKEUP_TIMER : 
-      Serial.println(F("[POWER] Wakeup caused by timer"));
+      LOG_INFO_LN(F("[POWER] Wakeup caused by timer"));
       uint64_t timeNow, timeDiff;
       timeNow = rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get());
       timeDiff = timeNow - sleepTime;
       printf("Now: %" PRIu64 "ms, Duration: %" PRIu64 "ms\n", timeNow / 1000, timeDiff / 1000);
       delay(2000);
     break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println(F("[POWER] Wakeup caused by touchpad")); break;
-    case ESP_SLEEP_WAKEUP_ULP : Serial.println(F("[POWER] Wakeup caused by ULP program")); break;
-    default : Serial.printf("[POWER] Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : LOG_INFO_LN(F("[POWER] Wakeup caused by touchpad")); break;
+    case ESP_SLEEP_WAKEUP_ULP : LOG_INFO_LN(F("[POWER] Wakeup caused by ULP program")); break;
+    default : LOG_INFO_F("[POWER] Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
   }
 }
 
@@ -121,16 +125,18 @@ void initWifiAndServices() {
   WifiManager.attachWebServer(&webServer);
   WifiManager.fallbackToSoftAp(preferences.getBool("enableSoftAp", true));
 
+  WebSerial.begin(&webServer);
+  
   APIRegisterRoutes();
   webServer.begin();
-  Serial.println(F("[WEB] HTTP server started"));
+  LOG_INFO_LN(F("[WEB] HTTP server started"));
 
   if (enableWifi) {
-    Serial.println(F("[MDNS] Starting mDNS Service!"));
+    LOG_INFO_LN(F("[MDNS] Starting mDNS Service!"));
     MDNS.begin(hostName.c_str());
     MDNS.addService("http", "tcp", 80);
     MDNS.addService("ota", "udp", 3232);
-    Serial.printf("[MDNS] You should be able now to open http://%s.local/ in your browser.\n", hostName);
+    LOG_INFO_F("[MDNS] You should be able now to open http://%s.local/ in your browser.\n", hostName);
   }
 
   if (enableMqtt) {
@@ -142,7 +148,7 @@ void initWifiAndServices() {
       preferences.getString("mqttPass", "")
     );
   }
-  else Serial.println(F("[MQTT] Publish to MQTT is disabled."));
+  else LOG_INFO_LN(F("[MQTT] Publish to MQTT is disabled."));
 }
 
 void setup() {
@@ -151,30 +157,30 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
 
-  Serial.println(F("\n\n==== starting ESP32 setup() ===="));
-  Serial.printf("Firmware build date: %s %s\n", __DATE__, __TIME__);
+  LOG_INFO_LN(F("\n\n==== starting ESP32 setup() ===="));
+  LOG_INFO_F("Firmware build date: %s %s\n", __DATE__, __TIME__);
 
   print_wakeup_reason();
-  Serial.printf("[SETUP] Configure ESP32 to sleep for every %d Seconds\n", TIME_TO_SLEEP);
+  LOG_INFO_F("[SETUP] Configure ESP32 to sleep for every %d Seconds\n", TIME_TO_SLEEP);
 
-  Serial.printf("[GPIO] Configuration of GPIO %d as INPUT_PULLUP ... ", button1.PIN);
+  LOG_INFO_F("[GPIO] Configuration of GPIO %d as INPUT_PULLUP ... ", button1.PIN);
   pinMode(button1.PIN, INPUT_PULLUP);
   attachInterrupt(button1.PIN, ISR_button1, FALLING);
-  Serial.println(F("done"));
+  LOG_INFO_LN(F("done"));
     
   if (!LittleFS.begin(true)) {
-    Serial.println(F("[FS] An Error has occurred while mounting LittleFS"));
+    LOG_INFO_LN(F("[FS] An Error has occurred while mounting LittleFS"));
     // Reduce power consumption while having issues with NVS
     // This won't fix the problem, a check of the sensor log is required
     deepsleepForSeconds(5);
   }
   if (!preferences.begin(NVS_NAMESPACE)) preferences.clear();
-  Serial.println(F("[LITTLEFS] initialized"));
+  LOG_INFO_LN(F("[LITTLEFS] initialized"));
 
   float currentPressure = 0.f;
   sensors_event_t event;
   bmp180_found = bmp180.begin(BMP085_MODE_ULTRAHIGHRES);
-  if (!bmp180_found) Serial.println(F("[BMP180] Chip not found, disabling temperature and pressure"));
+  if (!bmp180_found) LOG_INFO_LN(F("[BMP180] Chip not found, disabling temperature and pressure"));
   else {
     bmp180.getEvent(&event);
     if (event.pressure) currentPressure = event.pressure; // hPa
@@ -197,17 +203,17 @@ void setup() {
   enableMqtt = preferences.getBool("enableMqtt", false);
 
   if (enableWifi) initWifiAndServices();
-  else Serial.println(F("[WIFI] Not starting WiFi!"));
+  else LOG_INFO_LN(F("[WIFI] Not starting WiFi!"));
 
   if (enableBle) createBleServer(hostName);
-  else Serial.println(F("[BLE] Bluetooth low energy is disabled."));
+  else LOG_INFO_LN(F("[BLE] Bluetooth low energy is disabled."));
 
   String otaPassword = preferences.getString("otaPassword");
   if (otaPassword.isEmpty()) {
     otaPassword = String((uint32_t)ESP.getEfuseMac());
     preferences.putString("otaPassword", otaPassword);
   }
-  Serial.printf("[OTA] Password set to '%s'\n", otaPassword);
+  LOG_INFO_F("[OTA] Password set to '%s'\n", otaPassword);
   ArduinoOTA
     .setHostname(hostName.c_str())
     .setPassword(otaPassword.c_str())
@@ -218,21 +224,21 @@ void setup() {
         type = "filesystem";
         LittleFS.end();
       }
-      Serial.println("Start updating " + type);
+      LOG_INFO_LN("Start updating " + type);
     })
     .onEnd([]() {
-      Serial.println("\nEnd");
+      LOG_INFO_LN("\nEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      LOG_INFO_F("Progress: %u%%\r", (progress / (total / 100)));
     })
     .onError([](ota_error_t error) {
-      Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+      LOG_INFO_F("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) LOG_INFO_LN("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) LOG_INFO_LN("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) LOG_INFO_LN("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) LOG_INFO_LN("Receive Failed");
+      else if (error == OTA_END_ERROR) LOG_INFO_LN("End Failed");
     });
 
   ArduinoOTA.begin();
@@ -263,7 +269,7 @@ void loop() {
   ArduinoOTA.handle();
 
   if (button1.pressed) {
-    Serial.println(F("[EVENT] Button pressed!"));
+    LOG_INFO_LN(F("[EVENT] Button pressed!"));
     button1.pressed = false;
     if (enableWifi) {
       // bringt up a SoftAP instead of beeing a client
@@ -276,7 +282,7 @@ void loop() {
 
   // Stop repressurizing the tube after X seconds
   if (airPump.enabled && runtime() - airPump.duration > airPump.starttime) {
-    Serial.println(F("[AIRPUMP] Shutting down"));
+    LOG_INFO_LN(F("[AIRPUMP] Shutting down"));
     airPump.enabled = false;
     digitalWrite(airPump.PIN, LOW);
   }
@@ -307,7 +313,7 @@ void loop() {
         Timing.lastSetupRead = runtime();
         int val = LevelManagers[i]->runLevelSetup();
         if (!val) {
-          Serial.println(F("[SENSOR] Unable to read data from sensor!"));
+          LOG_INFO_LN(F("[SENSOR] Unable to read data from sensor!"));
         }
       }
     }
@@ -349,7 +355,7 @@ void loop() {
         jsonDoc[i]["airPressure"] = event.pressure;
         jsonDoc[i]["temperature"] = temperature;
 
-        Serial.printf("[SENSOR] Current level of %d. sensor is %d%% (raw %d, calculated %d)\n",
+        LOG_INFO_F("[SENSOR] Current level of %d. sensor is %d%% (raw %d, calculated %d)\n",
           i+1, level, (int)LevelManagers[i]->getSensorRawMedianReading(true), LevelManagers[i]->getCalulcatedMedianReading(true)
         );
       } else {
@@ -362,7 +368,7 @@ void loop() {
         jsonDoc[i]["airPressure"] = event.pressure;
         jsonDoc[i]["temperature"] = temperature;
 
-        Serial.printf("[SENSOR] Sensor %d not configured, please run the setup! (raw %d, calculated %d)\n",
+        LOG_INFO_F("[SENSOR] Sensor %d not configured, please run the setup! (raw %d, calculated %d)\n",
           i+1, (int)LevelManagers[i]->getSensorRawMedianReading(true), LevelManagers[i]->getCalulcatedMedianReading(true)
         );
       }
@@ -370,7 +376,7 @@ void loop() {
 
     serializeJsonPretty(jsonDoc, jsonOutput);
     events.send(jsonOutput.c_str(), "status", millis());
-    //Serial.println(jsonOutput);
+    //LOG_INFO_LN(jsonOutput);
   }
   sleepOrDelay();
 }

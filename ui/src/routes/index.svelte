@@ -10,10 +10,21 @@
   import { faSync } from '@fortawesome/pro-solid-svg-icons/faSync';
 
   // ******* SHOW LEVEL ******** //
-  let level = [];
-  onMount(async () => { 
+  let level = undefined;
+  //level = [ 77, 22 ]
+  onMount(async () => {
+    // initial level
+    const response = await fetch(`/api/level/current/all`).catch(error => console.log(error));
+    if(response.ok) level = await response.json();
+    else {
+      toast.push(`Error ${response.status} ${response.statusText}<br>Unable to request current level.`, variables.toast.error)
+    }
+  });
+
+  onMount(async () => {
+    // dynamic refreshing level
     if (!!window.EventSource) {
-      var source = new EventSource('/events');
+      var source = new EventSource('/api/events');
 
       source.addEventListener('error', function(e) {
         if (e.target.readyState != EventSource.OPEN) {

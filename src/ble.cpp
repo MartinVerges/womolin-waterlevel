@@ -10,6 +10,8 @@
  * License: CC BY-NC-SA 4.0
  */
 
+#include "log.h"
+
 #include "ble.h"
 #include <NimBLEDevice.h>
 
@@ -22,7 +24,7 @@ void stopBleServer() {
 }
 
 void createBleServer(String hostname) {
-  Serial.println(F("[BLE] Initializing the Bluetooth low energy (BLE) stack"));
+  LOG_INFO_LN(F("[BLE] Initializing the Bluetooth low energy (BLE) stack"));
   NimBLEDevice::init(hostname.c_str());
   //NimBLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_ADV);
   //NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
@@ -45,13 +47,13 @@ void createBleServer(String hostname) {
   pCharacteristicLevel->setValue(0);
   
   NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
-  Serial.print(F("[BLE] Begin Advertising of "));
-  Serial.println(pEnvService->getUUID().toString().c_str());
+  LOG_INFO(F("[BLE] Begin Advertising of "));
+  LOG_INFO_LN(pEnvService->getUUID().toString().c_str());
   pAdvertising->addServiceUUID(pEnvService->getUUID());
   //pAdvertising->setScanResponse(true); // false will reduce power consumtion
   //pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_DIR);
   NimBLEDevice::startAdvertising();
-  Serial.println(F("[BLE] Advertising Started"));
+  LOG_INFO_LN(F("[BLE] Advertising Started"));
 }
 
 void updateBleCharacteristic(int val) {
@@ -60,8 +62,8 @@ void updateBleCharacteristic(int val) {
     if(pSvc) {
         NimBLECharacteristic* pChr = pSvc->getCharacteristic(BLE_CHARACTERISTIC_LEVEL);
         if(pChr) {
-            Serial.print(F("[BLE] set value (and notify) to "));
-            Serial.println(val);
+            LOG_INFO(F("[BLE] set value (and notify) to "));
+            LOG_INFO_LN(val);
             pChr->setValue(val);
             pChr->notify(true);
         }

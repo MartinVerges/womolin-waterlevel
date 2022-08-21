@@ -26,6 +26,8 @@
 #include <SPI.h>
 #include <Wire.h>
 
+bool otaRunning = false;
+
 RTC_DATA_ATTR struct timing_t {
   // Check Services like MQTT, ...
   uint64_t lastServiceCheck = 0;               // last millis() from ServiceCheck
@@ -69,7 +71,7 @@ String hostName;
 uint32_t blePin;
 DNSServer dnsServer;
 AsyncWebServer webServer(webserverPort);
-AsyncEventSource events("/events");
+AsyncEventSource events("/api/events");
 Preferences preferences;
 
 MQTTclient Mqtt;

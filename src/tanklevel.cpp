@@ -10,6 +10,8 @@
  * License: CC BY-NC-SA 4.0
  */
 
+#include "log.h"
+
 #include <Arduino.h>
 #include <HX711.h>
 #include <Preferences.h>
@@ -51,7 +53,7 @@ bool TANKLEVEL::updateOffsetNVS() {
     preferences.end();
     return true;
   } else {
-    Serial.println("updateOffsetNVS() - Unable to write data to NVS, giving up...");
+    LOG_INFO_LN("updateOffsetNVS() - Unable to write data to NVS, giving up...");
     return false;
   }
 }
@@ -65,13 +67,13 @@ bool TANKLEVEL::writeToNVS() {
 
     for (uint8_t i = 0; i <= 100; i++) {
       preferences.putInt(String("val" + String(i)).c_str(), levelConfig.readings[i]);
-      // Serial.print("Write new value = ");
-      // Serial.println(levelConfig.readings[i]);
+      // LOG_INFO("Write new value = ");
+      // LOG_INFO_LN(levelConfig.readings[i]);
     }
     preferences.end();
     return true;
   } else {
-    Serial.println("writeToNVS() - Unable to write data to NVS, giving up...");
+    LOG_INFO_LN("writeToNVS() - Unable to write data to NVS, giving up...");
     return false;
   }
 }
@@ -98,7 +100,7 @@ int TANKLEVEL::getLevelData(int perc) {
 
 void TANKLEVEL::setSensorOffset(double newOffset, bool updateNVS) {
   if (newOffset == 0.0) {
-    Serial.println(F("Reading the new offset from sensor"));
+    LOG_INFO_LN(F("Reading the new offset from sensor"));
     newOffset = getSensorRawMedianReading(false);
   }
   levelConfig.offset = newOffset;
@@ -114,19 +116,19 @@ void TANKLEVEL::begin(String ns) {
   NVS = ns;
 
   if (!preferences.begin(NVS.c_str(), false)) {
-    Serial.println("Error opening NVS Namespace, giving up...");
+    LOG_INFO_LN("Error opening NVS Namespace, giving up...");
   } else {
     levelConfig.setupDone = preferences.getBool("setupDone", false);
     levelConfig.airPressureOnFilling = preferences.getUInt("airpressure", 0);
     setSensorOffset(preferences.getDouble("offset", 0.0), false);
     
     if (levelConfig.setupDone) {
-      Serial.println("LevelData restored from Storage...");
+      LOG_INFO_LN("LevelData restored from Storage...");
       for (uint8_t i = 0; i <= 100; i++) {
         levelConfig.readings[i] = preferences.getInt(String("val" + String(i)).c_str(), 0);
       }
     } else {
-      Serial.println("No stored configuration found on NVS...");
+      LOG_INFO_LN("No stored configuration found on NVS...");
     }
     preferences.end();
   }
@@ -174,9 +176,9 @@ int TANKLEVEL::getCalculatedPercentage(bool cached) {
         readingHistoryCount++;
         if (readingHistoryCount >= MAX_RTC_HISTORY) { // build a ringbuffer and overwrite the oldest entry
           readingHistoryCount = 0;
-          Serial.println(F("[HISTORY] We reached the maximum RTC history, printing out history data:"));
+          LOG_INFO_LN(F("[HISTORY] We reached the maximum RTC history, printing out history data:"));
           /*for (int r = 0; r < MAX_RTC_HISTORY; r++){
-            Serial.printf("%d,%d,%" PRIu64 "\n",
+            LOG_INFO_F("%d,%d,%" PRIu64 "\n",
               readingHistory[r].currentLevel,
               readingHistory[r].sensorValue,
               readingHistory[r].timestamp
@@ -187,7 +189,7 @@ int TANKLEVEL::getCalculatedPercentage(bool cached) {
 
       if (tankWasEmpty && x > 9 && airPressure > 0) {
         // just run it once when the tank get's filled up again to prevent unneccessary NVS writes
-        Serial.printf("Storing new value of %d to compensate readings as the tank now gets filled up again.\n", airPressure);
+        LOG_INFO_F("Storing new value of %d to compensate readings as the tank now gets filled up again.\n", airPressure);
         tankWasEmpty = false;
         levelConfig.airPressureOnFilling = airPressure;
         updateAirPressureNVS(airPressure);
@@ -208,12 +210,12 @@ bool TANKLEVEL::updateAirPressureNVS(uint32_t newPressure) {
       // only a minor change, we don't update the old value
     } else {
       preferences.putUInt("airpressure", newPressure);
-      Serial.println(F("updateAirPressureNVS() - Wrote new pressure to NVS"));
+      LOG_INFO_LN(F("updateAirPressureNVS() - Wrote new pressure to NVS"));
     }
     preferences.end();
     return true;
   } else {
-    Serial.println(F("updateAirPressureNVS() - Unable to write data to NVS, giving up..."));
+    LOG_INFO_LN(F("updateAirPressureNVS() - Unable to write data to NVS, giving up..."));
     return false;
   }
 }
@@ -252,10 +254,10 @@ bool TANKLEVEL::beginLevelSetup() {
   if (!isSetupRunning()) {  // Start the level setup
     setupConfig.valueCount = 0;
     setupConfig.readings[setupConfig.valueCount++] = getCalulcatedMedianReading(false);
-    Serial.printf("Begin level setup with minValue of %d\n", setupConfig.readings[0]);
+    LOG_INFO_F("Begin level setup with minValue of %d\n", setupConfig.readings[0]);
     return true;
   } else {
-    Serial.println("Level setup is already running");
+    LOG_INFO_LN("Level setup is already running");
     return false;
   }
 }
@@ -273,13 +275,13 @@ void TANKLEVEL::setAbortAsync() {
 }
 
 bool TANKLEVEL::abortLevelSetup() {
-  Serial.print("Abort setup ... ");
+  LOG_INFO("Abort setup ... ");
   setupConfig.valueCount = 0;
   while(setupConfig.valueCount < MAX_DATA_POINTS) { // cleanup
     setupConfig.readings[setupConfig.valueCount++] = 0;
   }
   resetSetupData();
-  Serial.println("done");
+  LOG_INFO_LN("done");
   return true;
 }
 
@@ -295,15 +297,15 @@ bool TANKLEVEL::setupFrom2Values(int lower, int upper) {
   if (upper < lower) return false;
   for (size_t Y = 0; Y <= 100; Y++) {
     levelConfig.readings[Y] = (upper - lower) / 100.0 * Y + lower;
-    //Serial.println(levelConfig.readings[Y]);
+    //LOG_INFO_LN(levelConfig.readings[Y]);
   }
   if (levelConfig.readings[0] == lower && levelConfig.readings[100] == upper) {
-    Serial.println("Level config done!");
+    LOG_INFO_LN("Level config done!");
     levelConfig.setupDone = true;
     writeToNVS();
     return true;
   } else {
-    Serial.printf("Written data differs (%d vs %d) and (%d vs %d) to given values! Giving up!\n", 
+    LOG_INFO_F("Written data differs (%d vs %d) and (%d vs %d) to given values! Giving up!\n", 
       levelConfig.readings[0], lower,
       levelConfig.readings[100], upper
     ); 
@@ -314,7 +316,7 @@ bool TANKLEVEL::setupFrom2Values(int lower, int upper) {
 
 bool TANKLEVEL::endLevelSetup() {
   if (setupConfig.abort) return abortLevelSetup();
-  Serial.println("Exiting setup");
+  LOG_INFO_LN("Exiting setup");
 
   while(setupConfig.valueCount < MAX_DATA_POINTS) {
     // force end of setup by filling empty slots
@@ -324,8 +326,8 @@ bool TANKLEVEL::endLevelSetup() {
   std::sort(std::begin(setupConfig.readings), std::end(setupConfig.readings));
   int endIndex = findEndCutoffIndex();
   int startIndex = findStartCutoffIndex(endIndex);
-  // Serial.printf("Start Index = %d\n", startIndex);
-  // Serial.printf("End Index = %d\n", endIndex);
+  // LOG_INFO_F("Start Index = %d\n", startIndex);
+  // LOG_INFO_F("End Index = %d\n", endIndex);
 
   // calculate the percentages
   int readingCount = endIndex - startIndex + 1;  // number of readings to use
@@ -345,8 +347,8 @@ bool TANKLEVEL::endLevelSetup() {
     }
     // float Z = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1])); // save the value into the configuration
     levelConfig.readings[Y] = setupConfig.readings[x-1] + ((Y - y1) / (y2 - y1) * (setupConfig.readings[x] - setupConfig.readings[x-1]));
-    // Serial.printf("\t\t\ty1=\t%f\t | y2=\t%f\n", y1, y2);
-    // Serial.printf("Y=%d\t| Z = %d | z1=\t%f\t| z2=\t%f\n", Y, (int)Z, setupConfig.readings[x-1], setupConfig.readings[x]);
+    // LOG_INFO_F("\t\t\ty1=\t%f\t | y2=\t%f\n", y1, y2);
+    // LOG_INFO_F("Y=%d\t| Z = %d | z1=\t%f\t| z2=\t%f\n", Y, (int)Z, setupConfig.readings[x-1], setupConfig.readings[x]);
   }
   levelConfig.setupDone = true;
   
@@ -366,13 +368,13 @@ int TANKLEVEL::runLevelSetup() {
       endLevelSetup();
       return 0;
     }
-    Serial.printf("Recording new entry with a value of %d\n", getCalulcatedMedianReading(false));
+    LOG_INFO_F("Recording new entry with a value of %d\n", getCalulcatedMedianReading(false));
     setupConfig.readings[setupConfig.valueCount++] = getCalulcatedMedianReading(true);
     return getCalulcatedMedianReading(true);
   } else return 0;
 }
 
 void TANKLEVEL::setAirPressure(int32_t currentPressure) {
-  // Serial.printf("New airPressure is %d\n", currentPressure);
+  // LOG_INFO_F("New airPressure is %d\n", currentPressure);
   airPressure = currentPressure;
 }

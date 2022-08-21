@@ -6,6 +6,8 @@
  * @date 2022-05-29
 **/
 
+#include "log.h"
+
 #include "MQTTclient.h"
 
 bool enableMqtt = false;                    // Enable Mqtt, disable to reduce power consumtion, stored in NVS
@@ -33,23 +35,23 @@ void MQTTclient::prepare(String host, uint16_t port, String topic, String user, 
 
   // username+password will be used on connect()
   if (mqttUser.length() > 0 && mqttPass.length() > 0) {
-      Serial.print(F("[MQTT] Configured broker user: "));
-      Serial.println(mqttUser);
-      Serial.println(F("[MQTT] Configured broker pass: **hidden**"));
-  } else Serial.println(F("[MQTT] Configured broker without user and password!"));
+      LOG_INFO(F("[MQTT] Configured broker user: "));
+      LOG_INFO_LN(mqttUser);
+      LOG_INFO_LN(F("[MQTT] Configured broker pass: **hidden**"));
+  } else LOG_INFO_LN(F("[MQTT] Configured broker without user and password!"));
 
   if (mqttPort == 0 || mqttPort < 0 || mqttPort > 65535) mqttPort = 1883;
-  Serial.print(F("[MQTT] Configured broker port: "));
-  Serial.println(mqttPort);
+  LOG_INFO(F("[MQTT] Configured broker port: "));
+  LOG_INFO_LN(mqttPort);
 
   IPAddress ip;
   if (ip.fromString(mqttHost)) { // this is a valid IP
-    Serial.print(F("[MQTT] Configured broker IP: "));
-    Serial.println(ip);
+    LOG_INFO(F("[MQTT] Configured broker IP: "));
+    LOG_INFO_LN(ip);
     client.setServer(ip, mqttPort);
   } else {
-    Serial.print(F("[MQTT] Configured broker host: "));
-    Serial.println(mqttHost);
+    LOG_INFO(F("[MQTT] Configured broker host: "));
+    LOG_INFO_LN(mqttHost);
     client.setServer(mqttHost.c_str(), mqttPort);
   }
 }
@@ -61,9 +63,9 @@ void MQTTclient::registerEvents() {
 
 void MQTTclient::connect() {
   if (!enableMqtt) {
-    Serial.println(F("[MQTT] disabled!"));
+    LOG_INFO_LN(F("[MQTT] disabled!"));
   } else {
-    Serial.println(F("[MQTT] Connecting to MQTT..."));
+    LOG_INFO_LN(F("[MQTT] Connecting to MQTT..."));
     client.connect(
       mqttClientId.c_str(),
       mqttUser.length() > 0 ? mqttUser.c_str() : NULL,
@@ -75,7 +77,7 @@ void MQTTclient::connect() {
       1
     );
     sleep(0.5);
-    Serial.println(client.state());
+    LOG_INFO_LN(client.state());
   }
 }
 void MQTTclient::disconnect() {
@@ -84,41 +86,41 @@ void MQTTclient::disconnect() {
 
 /*
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  Serial.print(F("[MQTT] Disconnected from MQTT with reason: "));
-  Serial.println(static_cast<uint8_t>(reason));
+  LOG_INFO(F("[MQTT] Disconnected from MQTT with reason: "));
+  LOG_INFO_LN(static_cast<uint8_t>(reason));
 
   if (reason == AsyncMqttClientDisconnectReason::TCP_DISCONNECTED) {
-    Serial.println(F("[MQTT] ==> TCP disconnected."));
+    LOG_INFO_LN(F("[MQTT] ==> TCP disconnected."));
   } else if (reason == AsyncMqttClientDisconnectReason::MQTT_UNACCEPTABLE_PROTOCOL_VERSION) {
-    Serial.println(F("[MQTT] ==> Unacceptable protocol version."));
+    LOG_INFO_LN(F("[MQTT] ==> Unacceptable protocol version."));
   } else if (reason == AsyncMqttClientDisconnectReason::MQTT_IDENTIFIER_REJECTED) {
-    Serial.println(F("[MQTT] ==> Identifier rejected."));
+    LOG_INFO_LN(F("[MQTT] ==> Identifier rejected."));
   } else if (reason == AsyncMqttClientDisconnectReason::MQTT_SERVER_UNAVAILABLE) {
-    Serial.println(F("[MQTT] ==> The server is unavailable."));
+    LOG_INFO_LN(F("[MQTT] ==> The server is unavailable."));
   } else if (reason == AsyncMqttClientDisconnectReason::MQTT_MALFORMED_CREDENTIALS) {
-    Serial.println(F("[MQTT] ==> Malformed credentials."));
+    LOG_INFO_LN(F("[MQTT] ==> Malformed credentials."));
   } else if (reason == AsyncMqttClientDisconnectReason::MQTT_NOT_AUTHORIZED) {
-    Serial.println(F("[MQTT] ==> Not authorized, credentials required."));
+    LOG_INFO_LN(F("[MQTT] ==> Not authorized, credentials required."));
   } else if (reason == AsyncMqttClientDisconnectReason::TLS_BAD_FINGERPRINT) {
-    Serial.println(F("[MQTT] ==> TLS bad fingerprint."));
+    LOG_INFO_LN(F("[MQTT] ==> TLS bad fingerprint."));
   }
 }
 
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-  Serial.println("Publish received.");
-  Serial.print("  topic: ");
-  Serial.println(topic);
-  Serial.print("  qos: ");
-  Serial.println(properties.qos);
-  Serial.print("  dup: ");
-  Serial.println(properties.dup);
-  Serial.print("  retain: ");
-  Serial.println(properties.retain);
-  Serial.print("  len: ");
-  Serial.println(len);
-  Serial.print("  index: ");
-  Serial.println(index);
-  Serial.print("  total: ");
-  Serial.println(total);
+  LOG_INFO_LN("Publish received.");
+  LOG_INFO("  topic: ");
+  LOG_INFO_LN(topic);
+  LOG_INFO("  qos: ");
+  LOG_INFO_LN(properties.qos);
+  LOG_INFO("  dup: ");
+  LOG_INFO_LN(properties.dup);
+  LOG_INFO("  retain: ");
+  LOG_INFO_LN(properties.retain);
+  LOG_INFO("  len: ");
+  LOG_INFO_LN(len);
+  LOG_INFO("  index: ");
+  LOG_INFO_LN(index);
+  LOG_INFO("  total: ");
+  LOG_INFO_LN(total);
 }
 */

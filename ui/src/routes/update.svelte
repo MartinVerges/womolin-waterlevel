@@ -21,6 +21,12 @@
       uploadPercentCompleted = Math.round((event.loaded / event.total) * 100);
     }
 
+    request.onerror = event => {
+      uploadPercentCompleted = 0;
+      toast.push(`Error ${request.status} ${request.statusText}<br>Unable to upload the firmware`, variables.toast.error)
+      request.abort()
+    }
+
     request.onload = event => {
      if (request.status == 200) {
         toast.push(`New firmware uploaded, please wait!`, {

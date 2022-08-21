@@ -34,7 +34,7 @@ uint8_t dacValue(uint8_t use_dac, uint8_t percentage) {
     case 1: channel = DAC_CHANNEL_1; break;
     case 2: channel = DAC_CHANNEL_2; break;
     default:
-      Serial.println("[ERROR] DAC Channel not found!");
+      LOG_INFO_LN("[ERROR] DAC Channel not found!");
       return -1;
   }
 
@@ -45,11 +45,11 @@ uint8_t dacValue(uint8_t use_dac, uint8_t percentage) {
     val = round(start + (end-start) / 100.0 * percentage);
     dac_output_enable(channel);
     dac_output_voltage(channel, val);
-    Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", val, (float)DAC_VCC/255*val);
+    LOG_INFO_F("[GPIO] DAC output set to %d or %.2fmV\n", val, (float)DAC_VCC/255*val);
   } else {
     dac_output_enable(channel);
     dac_output_voltage(channel, 0);
-    Serial.printf("[GPIO] DAC output set to %d or %.2fmV\n", 0, 0.00);
+    LOG_INFO_F("[GPIO] DAC output set to %d or %.2fmV\n", 0, 0.00);
   }
   return val;
 }
