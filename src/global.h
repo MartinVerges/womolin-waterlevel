@@ -34,12 +34,8 @@ RTC_DATA_ATTR struct timing_t {
   const unsigned int serviceInterval = 30000;  // Interval in ms to execute code
 
   // Sensor data in loop()
-  uint64_t lastSensorRead = 0;                 // last millis() from Sensor read
-  const unsigned int sensorInterval = 500;     // Interval in ms to execute code
-
-  // Setup executing in loop()
-  uint64_t lastSetupRead = 0;                  // last millis() from Setup run
-  const unsigned int setupInterval = 15 * 60 * 1000 / 255;   // Interval in ms to execute code
+  uint64_t lastStatusUpdate = 0;                  // last millis() from Status report
+  const unsigned int statusUpdateInterval = 500;  // Interval in ms to execute code
 } Timing;
 
 RTC_DATA_ATTR uint64_t sleepTime = 0;       // Time that the esp32 slept
@@ -47,8 +43,8 @@ RTC_DATA_ATTR uint64_t sleepTime = 0;       // Time that the esp32 slept
 WIFIMANAGER WifiManager;
 bool enableWifi = true;                     // Enable Wifi, disable to reduce power consumtion, stored in NVS
 
-TANKLEVEL LevelManager1(GPIO_NUM_33, GPIO_NUM_32);
 #define LEVELMANAGERS 1
+TANKLEVEL LevelManager1(GPIO_NUM_33, GPIO_NUM_32, GPIO_NUM_19);
 TANKLEVEL * LevelManagers[LEVELMANAGERS] = {
   &LevelManager1
 };
@@ -60,6 +56,7 @@ struct Pump {
   uint64_t starttime;
 };
 Pump airPump = {GPIO_NUM_19, false, 5000, 0};   // Airpump using GPIO to repressure the tube
+
 
 struct Button {
   const gpio_num_t PIN;

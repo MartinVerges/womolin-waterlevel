@@ -35,10 +35,7 @@ class TANKLEVEL
             int readings[101] = {0};               // pressure readings to map to percentage filling 0% - 100%
         } levelConfig;
 
-        int lastMedian = 0;                        // last reading median value
-        double lastRawReading = 0.0;               // last sensor raw reading
-
-        int airPressure = 0;                       // current air pressure
+        int airPressure = 0;                       // current air pressure in hPa
         bool tankWasEmpty = false;                 // True, when the tank is empty to store new airPressure when filling again
 
         struct state_t {
@@ -49,6 +46,16 @@ class TANKLEVEL
             int minValue = 0.00;                   // lowest value to start recording
             int readings[MAX_DATA_POINTS] = {0};   // data readings from pressure sensor while running level setup
         } setupConfig;
+
+        struct timeing_t {
+            // Update Sensor data in loop()
+            uint64_t lastSensorRead = 0;                 // last millis() from Sensor read
+            const unsigned int sensorIntervalMs = 500;     // Interval in ms to execute code
+
+            // Execute Setup procedure in loop()
+            uint64_t lastSetupRead = 0;                  // last millis() from Setup run
+            const unsigned int setupIntervalMs = 15 * 60 * 1000 / 255;   // Interval in ms to execute code
+        } timing;
 
         HX711 hx711;
         Preferences preferences;
@@ -65,11 +72,58 @@ class TANKLEVEL
         // Write current leveldata to non volatile storage
         bool writeToNVS();
 
-        // Write the offset to NVS
-        //bool updateOffsetNVS();
+        // Automatically enable the Air Pump if air pressure greatly increases or decreases
+        bool automaticAirPump = true;
+
+        // Enable the Air Pump if atmospheric pressure in PA 
+        uint16_t automatichAirPumpOnPressureDifferenceHPA = 100;
+
+        // True as long as the pump is running
+        bool airPumpEnabled = false;
+
+        // Time when the Air Pump was started
+        uint64_t airPumpStarttime = 0;
+
+        // GPIO PIN that enables the Air Pump on HIGH
+        gpio_num_t airPumpPIN = GPIO_NUM_NC;
+
+        // Runtime of the Air Pump in milliseconds
+        uint64_t airPumpDurationMS = 5000;
 
 	public:
+        // The current level set by calculateLevel()
+        uint8_t level = 0;
+
+        // The last reading median sensor value
+        int lastMedian = 0;
+
+        // The last sensor raw reading
+        double lastRawReading = 0.0;
+
+        // Set the level variable to 0-100 according to the current state of lastMedian
+        // You need to call getCalulcatedMedianReading() before calculateLevel() to update lastMedian
+        uint8_t calculateLevel();
+
+        // Configure the AirPump GPIO
+        void setAirPumpPIN(gpio_num_t gpio);
+
+        // Set a new duration for the Air Pump runtime
+        void setAirPumpDuration(uint64_t d) { airPumpDurationMS = d; }
+
+        // Start/Activate the Air Pump
+        void activateAirPump();
+
+        // Stop/Deactivate the Air Pump
+        void deactivateAirPump();
+
+        // Enable/Disable automatic repressurization
+        void setAutomaticAirPump(bool enabled) { automaticAirPump = enabled; }
+
+        // call loop
+        void loop();
+    
 		TANKLEVEL(uint8_t dout, uint8_t pd_sck);
+		TANKLEVEL(uint8_t dout, uint8_t pd_sck, gpio_num_t airPumpPIN);
 		virtual ~TANKLEVEL();
 
         // Initialize the Webserver
@@ -85,7 +139,7 @@ class TANKLEVEL
         int getCalulcatedMedianReading(bool cached = false);
 
         // Calculate current level in percent. Requires valid level setup.
-        int getCalculatedPercentage(bool cached = false);
+        // int getCalculatedPercentage(bool cached = false);
 
         // Get the configured level for a percentage value
         int getLevelData(int perc);
@@ -129,7 +183,7 @@ class TANKLEVEL
         // Abort the current running level setup without storing it to NVS
         bool abortLevelSetup();
 
-        // helper to get ESP32 runtime^
+        // helper to get ESP32 runtime
         uint64_t runtime();
 
         // Set a new sensor offset from current sensor reading
@@ -138,8 +192,8 @@ class TANKLEVEL
         // Get the current sensor offset value
         double getSensorOffset();
 
-        // Update the current evironmental pressure to compensate sensor reading
-        void setAirPressure(int32_t currentPressure);
+        // Update the current evironmental pressure in hPa to compensate sensor reading
+        void setAirPressure(int32_t hPa);
 };
 
 #endif /* TANKLEVEL_h */

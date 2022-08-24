@@ -240,7 +240,13 @@ void APIRegisterRoutes() {
         enableDac = jsonBuffer["enabledac"].as<boolean>();
       }
 
-      preferences.putString("otaPassword", jsonBuffer["otaPassword"].as<String>());
+      preferences.putString("otaPassword", jsonBuffer["otapassword"].as<String>());
+
+      if (preferences.putBool("autoAirPump", jsonBuffer["autoairpump"].as<boolean>())) {
+        for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+          LevelManagers[i]->setAutomaticAirPump( jsonBuffer["autoairpump"].as<boolean>() );
+        }
+      }
 
       // MQTT Settings
       preferences.putUInt("mqttPort", jsonBuffer["mqttport"].as<uint16_t>());
@@ -280,7 +286,8 @@ void APIRegisterRoutes() {
         doc["enableble"] = enableBle;
         doc["enabledac"] = enableDac;
 
-        doc["otaPassword"] = preferences.getString("otaPassword");
+        doc["otapassword"] = preferences.getString("otaPassword");
+        doc["autoairpump"] = preferences.getBool("autoAirPump", true);
 
         // MQTT
         doc["enablemqtt"] = enableMqtt;
@@ -371,7 +378,7 @@ void APIRegisterRoutes() {
     JsonArray array = doc.to<JsonArray>();
 
     for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-      array.add(LevelManagers[i]->getCalculatedPercentage(true));
+      array.add(LevelManagers[i]->level);
     }
     serializeJson(doc, output);
     request->send(200, "application/json", output);

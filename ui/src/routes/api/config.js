@@ -8,6 +8,8 @@ export async function get({request}) {
             "enablemqtt": true,
             "enablesoftap": true,
             "enablewifi": true,
+            "autoairpump": true,
+            "otapassword": "abcd1234567890",
             "hostname": "freshwater",
             "mqtthost": "192.168.255.1",
             "mqttpass": "abcd1234",

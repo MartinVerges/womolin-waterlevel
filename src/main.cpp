@@ -152,8 +152,6 @@ void initWifiAndServices() {
 }
 
 void setup() {
-  pinMode(airPump.PIN, OUTPUT);
-
   Serial.begin(115200);
   Serial.setDebugOutput(true);
 
@@ -188,6 +186,7 @@ void setup() {
 
   for (uint8_t i=0; i < LEVELMANAGERS; i++) {
     LevelManagers[i]->setAirPressure(currentPressure);
+    LevelManagers[i]->setAutomaticAirPump(preferences.getBool("autoAirPump", true));
     LevelManagers[i]->begin((String(NVS_NAMESPACE) + String("s") + String(i)).c_str());
   }
 
@@ -280,48 +279,19 @@ void loop() {
     // softReset();
   }
 
-  // Stop repressurizing the tube after X seconds
-  if (airPump.enabled && runtime() - airPump.duration > airPump.starttime) {
-    LOG_INFO_LN(F("[AIRPUMP] Shutting down"));
-    airPump.enabled = false;
-    digitalWrite(airPump.PIN, LOW);
-  }
-
   if (runtime() - Timing.lastServiceCheck > Timing.serviceInterval) {
     Timing.lastServiceCheck = runtime();
     // Check if all the services work
     if (enableWifi && WiFi.status() == WL_CONNECTED && WiFi.getMode() & WIFI_MODE_STA) {
       if (enableMqtt && !Mqtt.isConnected()) Mqtt.connect();
     }
+  }
 
-    // Update air pressure value on all levelmanagers
-    sensors_event_t event;
-    bmp180.getEvent(&event);
-    if (event.pressure) {
-      for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-        LevelManagers[i]->setAirPressure(event.pressure);
-      }
-    }
-  }
-  
-  bool setup = false;
-  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-    if (LevelManagers[i]->isSetupRunning()) {
-      setup = true;
-      // run the level setup
-      if (runtime() - Timing.lastSetupRead >= Timing.setupInterval) {
-        Timing.lastSetupRead = runtime();
-        int val = LevelManagers[i]->runLevelSetup();
-        if (!val) {
-          LOG_INFO_LN(F("[SENSOR] Unable to read data from sensor!"));
-        }
-      }
-    }
-  }
+  for (uint8_t i=0; i < LEVELMANAGERS; i++) LevelManagers[i]->loop();
 
   // run regular operation
-  if (!setup && runtime() - Timing.lastSensorRead > Timing.sensorInterval) {
-    Timing.lastSensorRead = runtime();
+  if (runtime() - Timing.lastStatusUpdate > Timing.statusUpdateInterval) {
+    Timing.lastStatusUpdate = runtime();
 
     String jsonOutput;
     StaticJsonDocument<1024> jsonDoc;
@@ -335,32 +305,33 @@ void loop() {
       event.pressure = 0;
     }
     for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-      if (LevelManagers[i]->isConfigured()) {
-        uint8_t level = LevelManagers[i]->getCalculatedPercentage();
-        float sensorPressure = LevelManagers[i]->getSensorRawMedianReading(true);
+      // Update air pressure value on all levelmanagers
+      // 101.325 Pa = 101,325 kPa = 1013,25 hPa ≈ 1 bar.
+      LevelManagers[i]->setAirPressure(event.pressure);
 
+      if (LevelManagers[i]->isConfigured()) {
         String ident = String("level") + String(i);
-        if (enableDac) dacValue(i+1, level);
-        if (enableBle) updateBleCharacteristic(level);  // FIXME: need to manage multiple levels
+        if (enableDac) dacValue(i+1, LevelManagers[i]->level);
+        if (enableBle) updateBleCharacteristic(i+1, LevelManagers[i]->level);
         if (enableMqtt && Mqtt.isReady()) {
-          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), String(level).c_str(), true);
-          Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), String(sensorPressure).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), String(LevelManagers[i]->level).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), String(LevelManagers[i]->lastMedian).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/airPressure" + String(i+1)).c_str(), String(event.pressure).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/temperature" + String(i+1)).c_str(), String(temperature).c_str(), true);
         }
 
         jsonDoc[i]["id"] = i;
-        jsonDoc[i]["level"] = level;
-        jsonDoc[i]["sensorPressure"] = sensorPressure;
+        jsonDoc[i]["level"] = LevelManagers[i]->level;
+        jsonDoc[i]["sensorPressure"] = LevelManagers[i]->lastMedian;
         jsonDoc[i]["airPressure"] = event.pressure;
         jsonDoc[i]["temperature"] = temperature;
 
         LOG_INFO_F("[SENSOR] Current level of %d. sensor is %d%% (raw %d, calculated %d)\n",
-          i+1, level, (int)LevelManagers[i]->getSensorRawMedianReading(true), LevelManagers[i]->getCalulcatedMedianReading(true)
+          i+1, LevelManagers[i]->level, (int)LevelManagers[i]->lastRawReading, LevelManagers[i]->lastMedian
         );
       } else {
         if (enableDac) dacValue(i+1, 0);
-        if (enableBle) updateBleCharacteristic(0);  // FIXME
+        if (enableBle) updateBleCharacteristic(i+1, 0);
         int tmp = LevelManagers[i]->getCalulcatedMedianReading();
 
         jsonDoc[i]["id"] = i;
@@ -369,7 +340,7 @@ void loop() {
         jsonDoc[i]["temperature"] = temperature;
 
         LOG_INFO_F("[SENSOR] Sensor %d not configured, please run the setup! (raw %d, calculated %d)\n",
-          i+1, (int)LevelManagers[i]->getSensorRawMedianReading(true), LevelManagers[i]->getCalulcatedMedianReading(true)
+          i+1, (int)LevelManagers[i]->lastRawReading, LevelManagers[i]->lastMedian
         );
       }
     }

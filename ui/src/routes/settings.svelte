@@ -49,10 +49,11 @@
     <Input id="enablesoftap" bind:checked={config.enablesoftap} type="checkbox" label="Create AP if no WiFi is available" />
     <Input id="enableble" bind:checked={config.enableble} type="checkbox" label="Enable Bluetooth (BLE)" />
     <Input id="enabledac" bind:checked={config.enabledac} type="checkbox" label="Enable DAC Analog Output" />
+    <Input id="autoairpump" bind:checked={config.autoairpump} type="checkbox" label="Enable automatic tube repressurizing" />
 </FormGroup>
 <FormGroup> 
-    <Label for="otaPassword">OTA (Over The Air) firmware update password</Label>   
-    <Input id="otaPassword" bind:value={config.otaPassword} placeholder="OTA Password" maxlength="32" />
+    <Label for="otapassword">OTA (Over The Air) firmware update password</Label>   
+    <Input id="otapassword" bind:value={config.otapassword} placeholder="OTA Password" maxlength="32" />
 </FormGroup>
 <FormGroup>
     <Input id="enablemqtt" bind:checked={config.enablemqtt} type="checkbox" label="Publish to MQTT Broker" />

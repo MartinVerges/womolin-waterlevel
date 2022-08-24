@@ -26,21 +26,62 @@ extern "C" {
   #endif
 }
 
-// Store some history in the RTC RAM that survives deep sleep
-#define MAX_RTC_HISTORY 100                        // store some data points to provide short term history
-typedef struct {
-    int currentLevel;
-    int sensorValue;
-    uint64_t timestamp;
-} sensorReadings;
-RTC_DATA_ATTR sensorReadings readingHistory[MAX_RTC_HISTORY];
-RTC_DATA_ATTR int readingHistoryCount = 0;
+TANKLEVEL::TANKLEVEL(uint8_t dout, uint8_t pd_sck, gpio_num_t pin) {
+    hx711.begin(dout, pd_sck, 32);
+    setAirPumpPIN(pin);
+}
 
 TANKLEVEL::TANKLEVEL(uint8_t dout, uint8_t pd_sck) {
     hx711.begin(dout, pd_sck, 32);
 }
 
 TANKLEVEL::~TANKLEVEL() {
+}
+
+void TANKLEVEL::loop() {
+  // Stop repressurizing the tube after X seconds
+  if (airPumpEnabled && runtime() - airPumpDurationMS > airPumpStarttime) {
+    deactivateAirPump();
+  }
+
+  if (isSetupRunning()) {
+    // run the level setup
+    if (runtime() - timing.lastSetupRead >= timing.setupIntervalMs) {
+      timing.lastSetupRead = runtime();
+      int val = runLevelSetup();
+      if (!val) LOG_INFO_LN(F("[SENSOR] Unable to read data from sensor!"));
+    }
+  } else {
+    if (runtime() - timing.lastSensorRead >= timing.sensorIntervalMs) {
+      timing.lastSensorRead = runtime();
+      getCalulcatedMedianReading();
+      calculateLevel();
+    }
+  }
+}
+
+void TANKLEVEL::deactivateAirPump() {
+  LOG_INFO_LN(F("[AIRPUMP] Shutting down"));
+  airPumpEnabled = false;
+  airPumpStarttime = 0;
+  digitalWrite(airPumpPIN, LOW);
+
+  levelConfig.airPressureOnFilling = airPressure;
+  updateAirPressureNVS(airPressure);
+}
+
+void TANKLEVEL::activateAirPump() {
+  LOG_INFO_F("[AIRPUMP] Starting Air Pump on GPIO %d\n", airPumpPIN);
+  airPumpEnabled = true;
+  airPumpStarttime = runtime();
+  digitalWrite(airPumpPIN, HIGH);
+}
+
+void TANKLEVEL::setAirPumpPIN(gpio_num_t gpio) {
+  airPumpPIN = gpio; 
+  pinMode(airPumpPIN, OUTPUT);
+  digitalWrite(airPumpPIN, LOW);
+  airPumpEnabled = false;
 }
 
 uint64_t TANKLEVEL::runtime() {
@@ -156,56 +197,30 @@ int TANKLEVEL::getCalulcatedMedianReading(bool cached) {
   return lastMedian;
 }
 
-int TANKLEVEL::getCalculatedPercentage(bool cached) {
-  int val = lastMedian;
-  if (!cached && val == 0) {
-    val = getCalulcatedMedianReading(false);
-  } else if (!cached) {
-    // This is an attempt to reduce strong fluctuations (e.g. while driving).
-    val = (val * 10 + getCalulcatedMedianReading(false)) / 11;
-  }
-  
+uint8_t TANKLEVEL::calculateLevel() {
   // Find the highest percentage of the current reading value
-  for(int x=100; x>0; x--) {
-    if (val >= levelConfig.readings[x]) {
-      if (!cached) {
-        // Write a new entry to readingHistory
-        readingHistory[readingHistoryCount].currentLevel = x;
-        readingHistory[readingHistoryCount].sensorValue = val;
-        readingHistory[readingHistoryCount].timestamp = runtime();
-        readingHistoryCount++;
-        if (readingHistoryCount >= MAX_RTC_HISTORY) { // build a ringbuffer and overwrite the oldest entry
-          readingHistoryCount = 0;
-          LOG_INFO_LN(F("[HISTORY] We reached the maximum RTC history, printing out history data:"));
-          /*for (int r = 0; r < MAX_RTC_HISTORY; r++){
-            LOG_INFO_F("%d,%d,%" PRIu64 "\n",
-              readingHistory[r].currentLevel,
-              readingHistory[r].sensorValue,
-              readingHistory[r].timestamp
-            );
-          }*/
+  for(uint8_t x=100; x>0; x--) {
+    if (lastMedian >= levelConfig.readings[x]) {
+        if (tankWasEmpty && x > 25 && airPressure > 0) {
+          // just run it once when the tank get's filled up again to prevent unneccessary NVS writes
+          LOG_INFO_F("Storing new value of %d to compensate readings as the tank now gets filled up again.\n", airPressure);
+          tankWasEmpty = false;
+          levelConfig.airPressureOnFilling = airPressure;
+          updateAirPressureNVS(airPressure);
         }
-      }
-
-      if (tankWasEmpty && x > 9 && airPressure > 0) {
-        // just run it once when the tank get's filled up again to prevent unneccessary NVS writes
-        LOG_INFO_F("Storing new value of %d to compensate readings as the tank now gets filled up again.\n", airPressure);
-        tankWasEmpty = false;
-        levelConfig.airPressureOnFilling = airPressure;
-        updateAirPressureNVS(airPressure);
-      }
-
-      return x;
+        level = x;
+        return level;
     }
   }
   tankWasEmpty = true;
-  return 0;
+  level = 0;
+  return level;
 }
 
 bool TANKLEVEL::updateAirPressureNVS(uint32_t newPressure) {
   if (preferences.begin(NVS.c_str(), false)) {
     // prevent unneccessary writes to NVS, only if there is a larger pressure difference
-    uint32_t old = preferences.getUInt("airpressure"); // 95779
+    uint32_t old = preferences.getUInt("airpressure");
     if (old+NVS_WRITE_TOLERANCE_PA > newPressure && old-NVS_WRITE_TOLERANCE_PA < newPressure) {
       // only a minor change, we don't update the old value
     } else {
@@ -369,12 +384,24 @@ int TANKLEVEL::runLevelSetup() {
       return 0;
     }
     LOG_INFO_F("Recording new entry with a value of %d\n", getCalulcatedMedianReading(false));
-    setupConfig.readings[setupConfig.valueCount++] = getCalulcatedMedianReading(true);
-    return getCalulcatedMedianReading(true);
+    setupConfig.readings[setupConfig.valueCount++] = lastMedian;
+    return lastMedian;
   } else return 0;
 }
 
-void TANKLEVEL::setAirPressure(int32_t currentPressure) {
-  // LOG_INFO_F("New airPressure is %d\n", currentPressure);
-  airPressure = currentPressure;
+void TANKLEVEL::setAirPressure(int32_t hPa) {
+  if (hPa > 0 && hPa < 2000) {
+    // LOG_INFO_F("New airPressure is %d hPa\n", hPa);
+    airPressure = hPa;
+
+    if (automaticAirPump) {
+      // Automatic repressurization is enabled.
+      // Check if there is a larger difference from the stored air pressure value
+      if (levelConfig.airPressureOnFilling - airPressure > automatichAirPumpOnPressureDifferenceHPA
+       or airPressure - levelConfig.airPressureOnFilling > automatichAirPumpOnPressureDifferenceHPA) {
+        // airPressure reduced more than X or increased more than X
+        activateAirPump();
+      }
+    }
+  } else LOG_INFO_F("[ERROR] Invalid airpressure value given. Got %d\n", hPa);
 }

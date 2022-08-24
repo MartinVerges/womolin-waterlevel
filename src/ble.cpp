@@ -56,7 +56,8 @@ void createBleServer(String hostname) {
   LOG_INFO_LN(F("[BLE] Advertising Started"));
 }
 
-void updateBleCharacteristic(int val) {
+// FIXME: need to manage multiple levels given by "ch"
+void updateBleCharacteristic(uint8_t ch, int val) {
   if (pServer->getConnectedCount()) {
     NimBLEService* pSvc = pServer->getServiceByUUID(BLE_SERVICE_LEVEL);
     if(pSvc) {
