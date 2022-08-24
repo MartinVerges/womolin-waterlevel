@@ -52,18 +52,18 @@
   })
 
     // ******* REPRESSUREIZE ******** //
-    let isVisible = false;
+    let isVisible = [];
     async function repressurizeTube(sensor) {
-        isVisible = true;
-        const response = await fetch(`/api/restore/pressure?sensor=${sensor}`, {
-			method: 'POST',
-            headers: { "Content-type": "application/json" }
-		}).catch(error => console.log(error));
-		if(!response.ok) {
-            toast.push(`Error ${response.status} ${response.statusText}<br>Unable to repressurize tube of Sensor ${sensor}.`, variables.toast.error)
-        }
-        isVisible = false;
-    }
+      isVisible[sensor] = true;
+      const response = await fetch(`/api/restore/pressure?sensor=${sensor+1}`, {
+			  method: 'POST',
+        headers: { "Content-type": "application/json" }
+		  }).catch(error => console.log(error));
+		  if(!response.ok) {
+        toast.push(`Error ${response.status} ${response.statusText}<br>Unable to repressurize tube of Sensor ${sensor+1}.`, variables.toast.error)
+      }
+      isVisible[sensor] = false;
+    }[sensor]
 </script>
 
 <svelte:head>
@@ -82,8 +82,8 @@
     <Progress animated value={level[i]} style="height: 5rem;">{level[i]}%</Progress>
   </div>
   <div class="col-sm-3">
-    <Button on:click={()=>repressurizeTube(i+1)} block style="height: 5rem;">
-      {#if isVisible}<div out:fade={{ delay: 5000 }}><Fa icon={faSync} size="2x" spin />&nbsp;</div>{/if}
+    <Button on:click={()=>repressurizeTube(i)} block style="height: 5rem;">
+      {#if isVisible[i]}<div out:fade={{ delay: 5000 }}><Fa icon={faSync} size="2x" spin />&nbsp;</div>{/if}
       Repressurize
     </Button>
   </div>
