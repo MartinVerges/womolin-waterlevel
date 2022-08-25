@@ -49,15 +49,6 @@ TANKLEVEL * LevelManagers[LEVELMANAGERS] = {
   &LevelManager1
 };
 
-struct Pump {
-  const gpio_num_t PIN;
-  bool enabled;
-  uint64_t duration;
-  uint64_t starttime;
-};
-Pump airPump = {GPIO_NUM_19, false, 5000, 0};   // Airpump using GPIO to repressure the tube
-
-
 struct Button {
   const gpio_num_t PIN;
   bool pressed;
