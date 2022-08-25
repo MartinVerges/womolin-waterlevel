@@ -392,7 +392,8 @@ void APIRegisterRoutes() {
     request->send(200, "application/json", output);
   });
 
-  webServer.on("/api/partition/switch", HTTP_POST, [&](AsyncWebserverRequest * request) {
+  webServer.on("/api/partition/switch", HTTP_POST, [&](AsyncWebServerRequest * request){}, NULL,
+    [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
     auto next = esp_ota_get_next_update_partition(NULL);
     auto error = esp_ota_set_boot_partition(next);
     if (error == ESP_OK) {
