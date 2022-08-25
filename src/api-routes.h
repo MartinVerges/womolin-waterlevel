@@ -392,6 +392,16 @@ void APIRegisterRoutes() {
     request->send(200, "application/json", output);
   });
 
+  webServer.on("/api/partition/switch", HTTP_POST, [&](AsyncWebserverRequest * request) {
+    auto next = esp_ota_get_next_update_partition(NULL);
+    auto error = esp_ota_set_boot_partition(next);
+    if (error == ESP_OK) {
+      request->send(200, "application/json", "{\"message\":\"New partition ready for boot\"}");
+    } else {
+      request->send(500, "application/json", "{\"message\":\"Error switching boot partition\"}");
+    }
+  });
+
   webServer.on("/api/esp", HTTP_GET, [&](AsyncWebServerRequest * request) {
     String output;
     DynamicJsonDocument json(2048);
