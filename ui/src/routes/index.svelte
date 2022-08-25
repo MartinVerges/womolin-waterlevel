@@ -63,7 +63,7 @@
         toast.push(`Error ${response.status} ${response.statusText}<br>Unable to repressurize tube of Sensor ${sensor+1}.`, variables.toast.error)
       }
       isVisible[sensor] = false;
-    }[sensor]
+    }
 </script>
 
 <svelte:head>
