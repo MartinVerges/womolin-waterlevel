@@ -189,9 +189,7 @@ void APIRegisterRoutes() {
 
     // FIXME: Add support for second airpump
     LOG_INFO_LN(F("[AIRPUMP] Restoring pressure in the tube"));
-    airPump.enabled = true;
-    airPump.starttime = runtime();
-    digitalWrite(airPump.PIN, HIGH);
+    LevelManagers[lm-1]->activateAirPump();
 
     request->send(200, "application/json", "{\"message\":\"Restoring pressure in the tube!\"}");
     request->send(response);

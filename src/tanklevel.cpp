@@ -71,7 +71,7 @@ void TANKLEVEL::deactivateAirPump() {
 }
 
 void TANKLEVEL::activateAirPump() {
-  LOG_INFO_F("[AIRPUMP] Starting Air Pump on GPIO %d\n", airPumpPIN);
+  LOG_INFO_F("[AIRPUMP] Starting Air Pump on GPIO %d at runtime %" PRIu64 "\n", airPumpPIN, runtime());
   airPumpEnabled = true;
   airPumpStarttime = runtime();
   digitalWrite(airPumpPIN, HIGH);
