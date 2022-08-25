@@ -403,5 +403,5 @@ void TANKLEVEL::setAirPressure(int32_t hPa) {
         activateAirPump();
       }
     }
-  } else LOG_INFO_F("[ERROR] Invalid airpressure value given. Got %d\n", hPa);
+  } else if (hPa != 0) LOG_INFO_F("[ERROR] Invalid airpressure value given. Got %d\n", hPa);
 }

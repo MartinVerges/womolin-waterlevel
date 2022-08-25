@@ -50,11 +50,11 @@ class TANKLEVEL
         struct timeing_t {
             // Update Sensor data in loop()
             uint64_t lastSensorRead = 0;                 // last millis() from Sensor read
-            const unsigned int sensorIntervalMs = 500;     // Interval in ms to execute code
+            const uint32_t sensorIntervalMs = 5000;      // Interval in ms to execute code
 
             // Execute Setup procedure in loop()
-            uint64_t lastSetupRead = 0;                  // last millis() from Setup run
-            const unsigned int setupIntervalMs = 15 * 60 * 1000 / 255;   // Interval in ms to execute code
+            uint64_t lastSetupRead = 0;                              // last millis() from Setup run
+            const uint32_t setupIntervalMs = 15 * 60 * 1000 / 255;   // Interval in ms to execute code
         } timing;
 
         HX711 hx711;
