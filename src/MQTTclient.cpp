@@ -77,7 +77,43 @@ void MQTTclient::connect() {
       1
     );
     sleep(0.5);
-    LOG_INFO_LN(client.state());
+
+    switch (client.state()) {
+    case MQTT_CONNECTION_TIMEOUT:
+      LOG_INFO_LN(F("[MQTT] ... connection time out"));
+      break;
+    case MQTT_CONNECTION_LOST:
+      LOG_INFO_LN(F("[MQTT] ... connection lost"));
+      break;
+    case MQTT_CONNECT_FAILED:
+      LOG_INFO_LN(F("[MQTT] ... connection failed"));
+      break;
+    case MQTT_DISCONNECTED:
+      LOG_INFO_LN(F("[MQTT] ... disconnected"));
+      break;
+    case MQTT_CONNECTED:
+      LOG_INFO_LN(F("[MQTT] ... connected"));
+      break;
+    case MQTT_CONNECT_BAD_PROTOCOL:
+      LOG_INFO_LN(F("[MQTT] ... connection error: bad protocol"));
+      break;
+    case MQTT_CONNECT_BAD_CLIENT_ID:
+      LOG_INFO_LN(F("[MQTT] ... connection error: bad client ID"));
+      break;
+    case MQTT_CONNECT_UNAVAILABLE:
+      LOG_INFO_LN(F("[MQTT] ... connection error: unavailable"));
+      break;
+    case MQTT_CONNECT_BAD_CREDENTIALS:
+      LOG_INFO_LN(F("[MQTT] ... connection error: bad credentials"));
+      break;
+    case MQTT_CONNECT_UNAUTHORIZED:
+      LOG_INFO_LN(F("[MQTT] ... connection error: unauthorized"));
+      break;
+    default:
+      LOG_INFO(F("[MQTT] ... connection error: unknown code "));
+      LOG_INFO_LN(client.state());
+      break;
+    }
   }
 }
 void MQTTclient::disconnect() {
@@ -123,4 +159,21 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   LOG_INFO("  total: ");
   LOG_INFO_LN(total);
 }
+
+17:37:08.132 > [OTA] Password set to '3399731656'
+17:37:08.143 > [MQTT] Connecting to MQTT...
+17:37:08.157 > 0
+17:37:11.168 > Guru Meditation Error: Core  1 panic'ed (IntegerDivideByZero). Exception was unhandled.
+17:37:11.176 > 
+17:37:11.176 > Core  1 register dump:
+17:37:11.178 > PC      : 0x400f76a0  PS      : 0x00060630  A0      : 0x800f7948  A1      : 0x3ffd0870  
+17:37:11.186 > A2      : 0x00000000  A3      : 0x00000000  A4      : 0x00000000  A5      : 0x3ffc6100  
+17:37:11.194 > A6      : 0x00000004  A7      : 0x00000020  A8      : 0x00000000  A9      : 0x3ffc4338  
+17:37:11.201 > A10     : 0x000000f8  A11     : 0x3ffd086d  A12     : 0x3ffca00c  A13     : 0x00000002  
+17:37:11.209 > A14     : 0x3ffd086c  A15     : 0xff000000  SAR     : 0x00000008  EXCCAUSE: 0x00000006  
+17:37:11.217 > EXCVADDR: 0x00000000  LBEG    : 0x40091720  LEND    : 0x40091736  LCOUNT  : 0xffffffff  
+17:37:11.225 > 
+17:37:11.225 > 
+17:37:11.225 > Backtrace:0x400f769d:0x3ffd08700x400f7945:0x3ffd0890 0x400f7a22:0x3ffd08c0 0x400dd9f1:0x3ffd08f0 0x401151a9:0x3ffd0e30 
+17:37:11.279 >   #0  0x400f769d:0x3ffd08700 in PubSubClient::connect(char const*, char const*, char const*, char const*, unsigned char, bool, char const*, bool) at .pio/libdeps/esp32dev/PubSubClient/src/PubSubClient.cpp:245
 */
