@@ -396,7 +396,35 @@ void APIRegisterRoutes() {
     String output;
     DynamicJsonDocument json(2048);
 
-    json["rebootReason"] = esp_reset_reason();
+    JsonObject booting = json.createNestedObject("booting");
+    booting["rebootReason"] = esp_reset_reason();
+    booting["partitionCount"] = esp_ota_get_app_partition_count();
+
+    auto partition = esp_ota_get_boot_partition();
+    JsonObject bootPartition = json.createNestedObject("bootPartition");
+    bootPartition["address"] = partition->address;
+    bootPartition["size"] = partition->size;
+    bootPartition["label"] = partition->label;
+    bootPartition["encrypted"] = partition->encrypted;
+    switch (partition->type) {
+      case ESP_PARTITION_TYPE_APP:  bootPartition["type"] = "app"; break;
+      case ESP_PARTITION_TYPE_DATA: bootPartition["type"] = "data"; break;
+      default: bootPartition["type"] = "any";
+    }
+    bootPartition["subtype"] = partition->subtype;
+
+    partition = esp_ota_get_running_partition();
+    JsonObject runningPartition = json.createNestedObject("runningPartition");
+    runningPartition["address"] = partition->address;
+    runningPartition["size"] = partition->size;
+    runningPartition["label"] = partition->label;
+    runningPartition["encrypted"] = partition->encrypted;
+    switch (partition->type) {
+      case ESP_PARTITION_TYPE_APP:  runningPartition["type"] = "app"; break;
+      case ESP_PARTITION_TYPE_DATA: runningPartition["type"] = "data"; break;
+      default: runningPartition["type"] = "any";
+    }
+    runningPartition["subtype"] = partition->subtype;
 
     JsonObject build = json.createNestedObject("build");
     build["date"] = __DATE__;
