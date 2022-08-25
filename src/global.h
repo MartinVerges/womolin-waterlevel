@@ -35,7 +35,7 @@ RTC_DATA_ATTR struct timing_t {
 
   // Sensor data in loop()
   uint64_t lastStatusUpdate = 0;                  // last millis() from Status report
-  const unsigned int statusUpdateInterval = 500;  // Interval in ms to execute code
+  const unsigned int statusUpdateInterval = 5000; // Interval in ms to execute code
 } Timing;
 
 RTC_DATA_ATTR uint64_t sleepTime = 0;       // Time that the esp32 slept
