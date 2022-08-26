@@ -82,7 +82,7 @@ void APIRegisterRoutes() {
     request->send(response);
   });
 
-///////////////////////////////////////////////////////////
+
   webServer.on("/api/firmware/info", HTTP_GET, [&](AsyncWebServerRequest *request) {
     auto data = esp_ota_get_running_partition();
     String output;
@@ -358,13 +358,20 @@ void APIRegisterRoutes() {
     if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
     
     // Do a simple linear tank level setup using lower+upper reading
-    DynamicJsonDocument jsonBuffer(64);
+    DynamicJsonDocument jsonBuffer(512);
     deserializeJson(jsonBuffer, (const char*)data);
 
     if (!jsonBuffer["lower"].is<int>() || !jsonBuffer["upper"].is<int>()) {
       request->send(422, "text/plain", "Invalid data");
       return;
     }
+
+    uint32_t volume = jsonBuffer["volume"].as<uint32_t>();
+    String unit = jsonBuffer["unit"].as<String>();
+    if (volume > 0 && unit.length() > 0) {
+      LevelManagers[lm-1]->setMaxVolume(volume, unit);
+    } else LevelManagers[lm-1]->setMaxVolume(0, "");
+
     if (!LevelManagers[lm-1]->setupFrom2Values(jsonBuffer["lower"], jsonBuffer["upper"])) {
       request->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
     } else request->send(200, "application/json", "{\"message\":\"Setup completed\"}");
@@ -372,13 +379,16 @@ void APIRegisterRoutes() {
 
   webServer.on("/api/level/current/all", HTTP_GET, [&](AsyncWebServerRequest *request) {
     String output;
-    StaticJsonDocument<512> doc;
-    JsonArray array = doc.to<JsonArray>();
+    StaticJsonDocument<1024> jsonDoc;
 
     for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-      array.add(LevelManagers[i]->level);
+        jsonDoc[i]["id"] = i;
+        jsonDoc[i]["level"] = LevelManagers[i]->level;
+        jsonDoc[i]["volume"] = LevelManagers[i]->getCurrentVolume();
+        jsonDoc[i]["sensorPressure"] = LevelManagers[i]->lastMedian;
+        jsonDoc[i]["airPressure"] = LevelManagers[i]->getAirPressure();
     }
-    serializeJson(doc, output);
+    serializeJson(jsonDoc, output);
     request->send(200, "application/json", output);
   });
 

@@ -11,7 +11,9 @@
 
   let config = {
     lower: undefined,
-    upper: undefined
+    upper: undefined,
+    volume: undefined,
+    unit: undefined
   };
 
   let setupSession = undefined;
@@ -64,6 +66,22 @@
 <p>
   The calibration is performed by a measurement when the tank is empty and another measurement after the tank is completely filled.
 </p>
+
+<div class="row">
+  <div class="col-sm-6">
+    <Label for="lower">How much liquid in liters can you fit in your tank.</Label>
+    <Input id="lower" bind:value={config.volume} type="number" />
+  </div>
+  <div class="col-sm-6">
+    <Label for="unit">In what unit is your value</Label>
+    <select bind:value={config.unit} id="unit" class="form-select">
+      <option value="liters" selected="selected">Liters (l)</option>
+      <option value="milliliters">Milliliters (ml)</option>
+      <option value="usgallons">US Liquid Gallons (US gal lqd)</option>
+    </select>
+  </div>
+</div>
+<br>
 <div class="row">
   <div class="col-sm-9">
     <Label for="lower">

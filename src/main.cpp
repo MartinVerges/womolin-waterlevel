@@ -287,6 +287,10 @@ void loop() {
     }
   }
 
+  // Do not continue regular operation as long as a OTA is running
+  // Reason: Background workload can cause upgrade issues that we want to avoid!
+  if (otaRunning) return sleepOrDelay();
+
   for (uint8_t i=0; i < LEVELMANAGERS; i++) LevelManagers[i]->loop();
 
   // run regular operation
@@ -315,6 +319,7 @@ void loop() {
         if (enableBle) updateBleCharacteristic(i+1, LevelManagers[i]->level);
         if (enableMqtt && Mqtt.isReady()) {
           Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), String(LevelManagers[i]->level).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/tankvolume" + String(i+1)).c_str(), String(LevelManagers[i]->getCurrentVolume()).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), String(LevelManagers[i]->lastMedian).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/airPressure" + String(i+1)).c_str(), String(event.pressure).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/temperature" + String(i+1)).c_str(), String(temperature).c_str(), true);
@@ -322,6 +327,7 @@ void loop() {
 
         jsonDoc[i]["id"] = i;
         jsonDoc[i]["level"] = LevelManagers[i]->level;
+        jsonDoc[i]["volume"] = LevelManagers[i]->getCurrentVolume();
         jsonDoc[i]["sensorPressure"] = LevelManagers[i]->lastMedian;
         jsonDoc[i]["airPressure"] = event.pressure;
         jsonDoc[i]["temperature"] = temperature;

@@ -31,13 +31,6 @@ TANKLEVEL::TANKLEVEL(uint8_t dout, uint8_t pd_sck, gpio_num_t pin) {
     setAirPumpPIN(pin);
 }
 
-TANKLEVEL::TANKLEVEL(uint8_t dout, uint8_t pd_sck) {
-    hx711.begin(dout, pd_sck, 32);
-}
-
-TANKLEVEL::~TANKLEVEL() {
-}
-
 void TANKLEVEL::loop() {
   // Stop repressurizing the tube after X seconds
   if (airPumpEnabled && runtime() - airPumpDurationMS > airPumpStarttime) {
@@ -88,6 +81,24 @@ uint64_t TANKLEVEL::runtime() {
   return rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get()) / 1000;
 }
 
+bool TANKLEVEL::setMaxVolume(uint32_t tankvolume, String unit) {
+  if (unit.equals("liters")) tankvolume = tankvolume * 1000;
+  else if (unit.equals("milliliters")) tankvolume = tankvolume;
+  else if (unit.equals("usgallons")) tankvolume = tankvolume * 1000 * 3.785411784;
+  else LOG_INFO_F("[ERROR] Unknown unit '%s' given\n", unit);
+
+  if (preferences.begin(NVS.c_str(), false)) {
+    LOG_INFO_F("[CONFIG] Tank volume of %d milliliters saved to NVS.\n", tankvolume);
+    preferences.putUInt("volume", tankvolume);
+    preferences.end();
+    levelConfig.volumeMilliLiters = tankvolume;
+    return true;
+  } else {
+    LOG_INFO_LN("setMaxVolume() - Unable to write data to NVS, giving up...");
+    return false;
+  }
+}
+
 bool TANKLEVEL::updateOffsetNVS() {
   if (preferences.begin(NVS.c_str(), false)) {
     preferences.putDouble("offset", levelConfig.offset);
@@ -105,6 +116,7 @@ bool TANKLEVEL::writeToNVS() {
     preferences.putBool("setupDone", true);
     preferences.putDouble("offset", levelConfig.offset);
     preferences.putUInt("airpressure", levelConfig.airPressureOnFilling);
+    preferences.putUInt("volume", levelConfig.volumeMilliLiters);
 
     for (uint8_t i = 0; i <= 100; i++) {
       preferences.putInt(String("val" + String(i)).c_str(), levelConfig.readings[i]);
@@ -149,10 +161,6 @@ void TANKLEVEL::setSensorOffset(double newOffset, bool updateNVS) {
   if (updateNVS) updateOffsetNVS();
 }
 
-double TANKLEVEL::getSensorOffset() {
-  return levelConfig.offset;
-}
-
 void TANKLEVEL::begin(String ns) {
   NVS = ns;
 
@@ -162,7 +170,9 @@ void TANKLEVEL::begin(String ns) {
     levelConfig.setupDone = preferences.getBool("setupDone", false);
     levelConfig.airPressureOnFilling = preferences.getUInt("airpressure", 0);
     setSensorOffset(preferences.getDouble("offset", 0.0), false);
-    
+
+    levelConfig.volumeMilliLiters = preferences.getUInt("volume", 0);
+
     if (levelConfig.setupDone) {
       LOG_INFO_LN("LevelData restored from Storage...");
       for (uint8_t i = 0; i <= 100; i++) {
@@ -277,18 +287,6 @@ bool TANKLEVEL::beginLevelSetup() {
   }
 }
 
-void TANKLEVEL::setStartAsync() {
-  setupConfig.start = true;
-}
-
-void TANKLEVEL::setEndAsync() {
-  setupConfig.end = true;
-}
-
-void TANKLEVEL::setAbortAsync() {
-  setupConfig.abort = true;
-}
-
 bool TANKLEVEL::abortLevelSetup() {
   LOG_INFO("Abort setup ... ");
   setupConfig.valueCount = 0;
@@ -314,19 +312,10 @@ bool TANKLEVEL::setupFrom2Values(int lower, int upper) {
     levelConfig.readings[Y] = (upper - lower) / 100.0 * Y + lower;
     //LOG_INFO_LN(levelConfig.readings[Y]);
   }
-  if (levelConfig.readings[0] == lower && levelConfig.readings[100] == upper) {
-    LOG_INFO_LN("Level config done!");
-    levelConfig.setupDone = true;
-    writeToNVS();
-    return true;
-  } else {
-    LOG_INFO_F("Written data differs (%d vs %d) and (%d vs %d) to given values! Giving up!\n", 
-      levelConfig.readings[0], lower,
-      levelConfig.readings[100], upper
-    ); 
-    levelConfig.setupDone = false;
-    return false;
-  }
+  LOG_INFO_LN("Level config done!");
+  levelConfig.setupDone = true;
+  writeToNVS();
+  return true;
 }
 
 bool TANKLEVEL::endLevelSetup() {

@@ -33,6 +33,7 @@ class TANKLEVEL
             double offset = 0.0;                   // Offset (tare) value of an unpressurized sensor reading
             int airPressureOnFilling = 0;          // AirPressure Value at the time when filling the tank to compensate readings
             int readings[101] = {0};               // pressure readings to map to percentage filling 0% - 100%
+            uint32_t volumeMilliLiters = 0;             // Tank volume in liters
         } levelConfig;
 
         int airPressure = 0;                       // current air pressure in hPa
@@ -119,12 +120,19 @@ class TANKLEVEL
         // Enable/Disable automatic repressurization
         void setAutomaticAirPump(bool enabled) { automaticAirPump = enabled; }
 
+        // Set tank volume in milli Liters
+        bool setMaxVolume(uint32_t tankvolume, String unit);
+        
+        // Get the max water tank volume
+        uint32_t getMaxVolume() { return levelConfig.volumeMilliLiters; }
+
+        // Get the current water tank volume
+        uint32_t getCurrentVolume() { return levelConfig.volumeMilliLiters * level / 100; }
+
         // call loop
         void loop();
     
-		TANKLEVEL(uint8_t dout, uint8_t pd_sck);
 		TANKLEVEL(uint8_t dout, uint8_t pd_sck, gpio_num_t airPumpPIN);
-		virtual ~TANKLEVEL();
 
         // Initialize the Webserver
 		void begin(String ns = "tanksensor");
@@ -172,13 +180,13 @@ class TANKLEVEL
         bool endLevelSetup();
 
         // Request to start a new level Setup
-        void setStartAsync();
+        void setStartAsync() { setupConfig.start = true; };
 
         // Request an end to the current running level setup
-        void setEndAsync();
+        void setEndAsync() { setupConfig.end = true; };
 
         // Request an abort of the current running level setup
-        void setAbortAsync();
+        void setAbortAsync() { setupConfig.abort = true; };
 
         // Abort the current running level setup without storing it to NVS
         bool abortLevelSetup();
@@ -190,10 +198,13 @@ class TANKLEVEL
         void setSensorOffset(double newOffset = 0.0, bool updateNVS = true);
         
         // Get the current sensor offset value
-        double getSensorOffset();
+        double getSensorOffset() { return levelConfig.offset; };
 
         // Update the current evironmental pressure in hPa to compensate sensor reading
         void setAirPressure(int32_t hPa);
+
+        // Get the current configured AirPressure
+        int getAirPressure() { return airPressure; }
 };
 
 #endif /* TANKLEVEL_h */
