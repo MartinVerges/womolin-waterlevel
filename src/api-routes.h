@@ -240,6 +240,12 @@ void APIRegisterRoutes() {
 
       preferences.putString("otaPassword", jsonBuffer["otapassword"].as<String>());
 
+      if (preferences.putUInt("pressureThreshold", jsonBuffer["pressurethreshold"].as<uint16_t>()) ) {
+        for (uint8_t i=0; i < LEVELMANAGERS; i++) {
+          LevelManagers[i]->setAirPressureThreshold( jsonBuffer["pressurethreshold"].as<uint16_t>() );
+        }
+      }
+      
       if (preferences.putBool("autoAirPump", jsonBuffer["autoairpump"].as<boolean>())) {
         for (uint8_t i=0; i < LEVELMANAGERS; i++) {
           LevelManagers[i]->setAutomaticAirPump( jsonBuffer["autoairpump"].as<boolean>() );
@@ -286,6 +292,7 @@ void APIRegisterRoutes() {
 
         doc["otapassword"] = preferences.getString("otaPassword");
         doc["autoairpump"] = preferences.getBool("autoAirPump", true);
+        doc["pressurethreshold"] = preferences.getUInt("pressureThreshold", 10);
 
         // MQTT
         doc["enablemqtt"] = enableMqtt;
@@ -349,6 +356,33 @@ void APIRegisterRoutes() {
       request->send(200, "application/json", "{\"message\":\"Abort requested\"}");
     } else request->send(200, "text/plain", "Abort requested");
   });
+
+  // Set the tank volume
+  webServer.on("/api/setup/volume", HTTP_POST, [&](AsyncWebServerRequest * request){}, NULL,
+    [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+    uint8_t lm = 1;
+    if (request->hasParam("sensor")) lm = request->getParam("sensor")->value().toInt();
+    if (lm > LEVELMANAGERS || lm < 1) return request->send(400, "text/plain", "Bad request, value outside available sensors");
+
+    DynamicJsonDocument jsonBuffer(512);
+    deserializeJson(jsonBuffer, (const char*)data);
+
+    if (!jsonBuffer["volume"].is<uint32_t>() || !jsonBuffer["unit"].is<String>()) {
+      request->send(422, "text/plain", "Invalid data");
+      return;
+    }
+
+    bool ret = false;
+    uint32_t volume = jsonBuffer["volume"].as<uint32_t>();
+    String unit = jsonBuffer["unit"].as<String>();
+    if (volume > 0 && unit.length() > 0) {
+      ret = LevelManagers[lm-1]->setMaxVolume(volume, unit);
+    } else ret = LevelManagers[lm-1]->setMaxVolume(0, "");
+
+    if (!ret) request->send(500, "application/json", "{\"message\":\"Unable to set tank volume\"}");
+    else request->send(200, "application/json", "{\"message\":\"New tank volume set\"}");
+  });
+
 
   // uniformed tank setup
   webServer.on("/api/setup/values", HTTP_POST, [&](AsyncWebServerRequest * request){}, NULL,

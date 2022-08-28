@@ -76,8 +76,8 @@ class TANKLEVEL
         // Automatically enable the Air Pump if air pressure greatly increases or decreases
         bool automaticAirPump = true;
 
-        // Enable the Air Pump if atmospheric pressure in PA 
-        uint16_t automatichAirPumpOnPressureDifferenceHPA = 100;
+        // Enable the Air Pump if atmospheric pressure in hPa 
+        uint16_t automatichAirPumpOnPressureDifferenceHPA = 10;
 
         // True as long as the pump is running
         bool airPumpEnabled = false;
@@ -120,13 +120,19 @@ class TANKLEVEL
         // Enable/Disable automatic repressurization
         void setAutomaticAirPump(bool enabled) { automaticAirPump = enabled; }
 
+        // Auto pump air pressure threshold
+        void setAirPressureThreshold(uint16_t x) { automatichAirPumpOnPressureDifferenceHPA = x; }
+
+        // Get current air pump auto start threshold
+        uint16_t getAirPressureThreshold() { return automatichAirPumpOnPressureDifferenceHPA; }
+
         // Set tank volume in milli Liters
         bool setMaxVolume(uint32_t tankvolume, String unit);
         
         // Get the max water tank volume
         uint32_t getMaxVolume() { return levelConfig.volumeMilliLiters; }
 
-        // Get the current water tank volume
+        // Get the current water tank volume in milliliters
         uint32_t getCurrentVolume() { return levelConfig.volumeMilliLiters * level / 100; }
 
         // call loop

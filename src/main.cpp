@@ -186,6 +186,7 @@ void setup() {
 
   for (uint8_t i=0; i < LEVELMANAGERS; i++) {
     LevelManagers[i]->setAirPressure(currentPressure);
+    LevelManagers[i]->setAirPressureThreshold(preferences.getUInt("pressureThreshold", 10));
     LevelManagers[i]->setAutomaticAirPump(preferences.getBool("autoAirPump", true));
     LevelManagers[i]->begin((String(NVS_NAMESPACE) + String("s") + String(i)).c_str());
   }
