@@ -33,9 +33,10 @@ class TANKLEVEL
             double offset = 0.0;                   // Offset (tare) value of an unpressurized sensor reading
             int airPressureOnFilling = 0;          // AirPressure Value at the time when filling the tank to compensate readings
             int readings[101] = {0};               // pressure readings to map to percentage filling 0% - 100%
-            uint32_t volumeMilliLiters = 0;             // Tank volume in liters
+            uint32_t volumeMilliLiters = 0;        // Tank volume in liters
         } levelConfig;
 
+        int lastMedian = 0;                        // The last reading median sensor value
         int airPressure = 0;                       // current air pressure in hPa
         bool tankWasEmpty = false;                 // True, when the tank is empty to store new airPressure when filling again
 
@@ -91,19 +92,22 @@ class TANKLEVEL
         // Runtime of the Air Pump in milliseconds
         uint64_t airPumpDurationMS = 5000;
 
-	public:
-        // The current level set by calculateLevel()
-        uint8_t level = 0;
-
-        // The last reading median sensor value
-        int lastMedian = 0;
-
-        // The last sensor raw reading
-        double lastRawReading = 0.0;
-
         // Set the level variable to 0-100 according to the current state of lastMedian
         // You need to call getCalulcatedMedianReading() before calculateLevel() to update lastMedian
         uint8_t calculateLevel();
+
+        // The current level set by calculateLevel()
+        uint8_t level = 0;
+
+	public:
+        // Get the current level calculcated and updated in loop()
+        uint8_t getLevel() { return level; }
+
+        // get Last Median reading value updated in loop()
+        int getLastMedian() { return lastMedian; }
+
+        // The last sensor raw reading
+        double lastRawReading = 0.0;
 
         // Configure the AirPump GPIO
         void setAirPumpPIN(gpio_num_t gpio);

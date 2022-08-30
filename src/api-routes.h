@@ -417,9 +417,9 @@ void APIRegisterRoutes() {
 
     for (uint8_t i=0; i < LEVELMANAGERS; i++) {
         jsonDoc[i]["id"] = i;
-        jsonDoc[i]["level"] = LevelManagers[i]->level;
+        jsonDoc[i]["level"] = LevelManagers[i]->getLevel();
         jsonDoc[i]["volume"] = LevelManagers[i]->getCurrentVolume();
-        jsonDoc[i]["sensorPressure"] = LevelManagers[i]->lastMedian;
+        jsonDoc[i]["sensorPressure"] = LevelManagers[i]->getLastMedian();
         jsonDoc[i]["airPressure"] = LevelManagers[i]->getAirPressure();
     }
     serializeJson(jsonDoc, output);

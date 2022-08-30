@@ -316,25 +316,25 @@ void loop() {
 
       if (LevelManagers[i]->isConfigured()) {
         String ident = String("level") + String(i);
-        if (enableDac) dacValue(i+1, LevelManagers[i]->level);
-        if (enableBle) updateBleCharacteristic(i+1, LevelManagers[i]->level);
+        if (enableDac) dacValue(i+1, LevelManagers[i]->getLevel());
+        if (enableBle) updateBleCharacteristic(i+1, LevelManagers[i]->getLevel());
         if (enableMqtt && Mqtt.isReady()) {
-          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), String(LevelManagers[i]->level).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/tanklevel" + String(i+1)).c_str(), String(LevelManagers[i]->getLevel()).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/tankvolume" + String(i+1)).c_str(), String(LevelManagers[i]->getCurrentVolume()).c_str(), true);
-          Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), String(LevelManagers[i]->lastMedian).c_str(), true);
+          Mqtt.client.publish((Mqtt.mqttTopic + "/sensorPressure" + String(i+1)).c_str(), String(LevelManagers[i]->getLastMedian()).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/airPressure" + String(i+1)).c_str(), String(event.pressure).c_str(), true);
           Mqtt.client.publish((Mqtt.mqttTopic + "/temperature" + String(i+1)).c_str(), String(temperature).c_str(), true);
         }
 
         jsonDoc[i]["id"] = i;
-        jsonDoc[i]["level"] = LevelManagers[i]->level;
+        jsonDoc[i]["level"] = LevelManagers[i]->getLevel();
         jsonDoc[i]["volume"] = LevelManagers[i]->getCurrentVolume();
-        jsonDoc[i]["sensorPressure"] = LevelManagers[i]->lastMedian;
+        jsonDoc[i]["sensorPressure"] = LevelManagers[i]->getLastMedian();
         jsonDoc[i]["airPressure"] = event.pressure;
         jsonDoc[i]["temperature"] = temperature;
 
         LOG_INFO_F("[SENSOR] Current level of %d. sensor is %d%% (raw %d, calculated %d)\n",
-          i+1, LevelManagers[i]->level, (int)LevelManagers[i]->lastRawReading, LevelManagers[i]->lastMedian
+          i+1, LevelManagers[i]->getLevel(), (int)LevelManagers[i]->lastRawReading, LevelManagers[i]->getLastMedian()
         );
       } else {
         if (enableDac) dacValue(i+1, 0);
@@ -347,7 +347,7 @@ void loop() {
         jsonDoc[i]["temperature"] = temperature;
 
         LOG_INFO_F("[SENSOR] Sensor %d not configured, please run the setup! (raw %d, calculated %d)\n",
-          i+1, (int)LevelManagers[i]->lastRawReading, LevelManagers[i]->lastMedian
+          i+1, (int)LevelManagers[i]->lastRawReading, LevelManagers[i]->getLastMedian()
         );
       }
     }

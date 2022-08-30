@@ -32,7 +32,6 @@ class MQTTclient {
         bool isConnected();
         bool isReady();
         void prepare(String host, uint16_t port, String topic, String user, String pass);
-        void registerEvents();
         void connect();
         void disconnect();
 

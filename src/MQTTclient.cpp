@@ -56,11 +56,6 @@ void MQTTclient::prepare(String host, uint16_t port, String topic, String user, 
   }
 }
 
-void MQTTclient::registerEvents() {
-//  client.onDisconnect(onMqttDisconnect);
-//  client.onMessage(onMqttMessage);
-}
-
 void MQTTclient::connect() {
   if (!enableMqtt) {
     LOG_INFO_LN(F("[MQTT] disabled!"));
