@@ -53,9 +53,9 @@ To build this sensor yourself, you need:
  * 1x MPX53DP Pressure Sensor (~8.00€)
  * 1x HX711 24-bit ADC (~2.50€)
  * 1x Pushbutton (~0.15€)
- * 1x Tube with 20mm outher dimension (~1€)
- * 1x Tube with 3mm inner width (~1€)
- * 1x Tube with 4mm inner width (~1€) 
+ * 1x Tube with 20mm outher dimension (~1€) [HDPE 20mm](https://www.hornbach.de/shop/KWL-PE-HD-Rohr-20-mm-Laenge-2-m-Stange-12-5-bar/10193149/artikel.html)
+ * 1x Tube with 4mm inner width (~1€) [PVC 4x1mm](https://www.hornbach.de/shop/Aquariumschlauch-Weich-PVC-Schlauch-4-x-1-mm-transparent-Meterware/5806466/artikel.html)
+ * 1x Mini Air Pump (~2€) [3V 370](https://www.alibaba.com/product-detail/3-7V-6V-12VAquarium-for-fish_1600385811993.html)
  * 1x Small 12V to 5V power supply (~1€)
  * 1x PG screw fitting in the dimension for the 20mm tube
  * 1x Connector for the Tank itself, strongly depending on your individual situation
