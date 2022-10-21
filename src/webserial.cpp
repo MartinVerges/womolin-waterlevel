@@ -1,6 +1,6 @@
 /**
  * @file webserial.cpp
- * @author Martin Verges <martin@veges.cc>
+ * @author Martin Verges <martin@verges.cc>
  * @version 0.1
  * @date 2022-08-16
  * 

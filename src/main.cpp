@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @author Martin Verges <martin@veges.cc>
+ * @author Martin Verges <martin@verges.cc>
  * @brief Tank level to MQTT with WiFi, BLE, and more
  * @version 0.1
  * @date 2022-07-09

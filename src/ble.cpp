@@ -1,6 +1,6 @@
 /**
  * @file ble.cpp
- * @author Martin Verges <martin@veges.cc>
+ * @author Martin Verges <martin@verges.cc>
  * @version 0.1
  * @date 2022-07-09
  * 
