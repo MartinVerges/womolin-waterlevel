@@ -38,13 +38,7 @@
 #include <driver/rtc_io.h>
 #include <esp_sleep.h>
 #include <soc/rtc.h>
-extern "C" {
-  #if ESP_ARDUINO_VERSION_MAJOR >= 2
-    #include <esp32/clk.h>
-  #else
-    #include <esp_clk.h>
-  #endif
-}
+#include <esp32/clk.h>
 
 #include "global.h"
 #include "api-routes.h"
@@ -57,67 +51,6 @@ Adafruit_BMP085_Unified bmp180 = Adafruit_BMP085_Unified(10085);
 bool bmp180_found = false;
 
 WebSerialClass WebSerial;
-
-void IRAM_ATTR ISR_button1() {
-  button1.pressed = true;
-}
-
-void deepsleepForSeconds(int seconds) {
-    esp_sleep_enable_timer_wakeup(seconds * uS_TO_S_FACTOR);
-    esp_deep_sleep_start();
-}
-
-// Check if a feature is enabled, that prevents the
-// deep sleep mode of our ESP32 chip.
-void sleepOrDelay() {
-  for (uint8_t i=0; i < LEVELMANAGERS; i++) {
-    if (LevelManagers[i]->isSetupRunning()) {
-      yield();
-      delay(50);
-      return;
-    }
-  }
-  if (enableWifi || enableBle || enableMqtt) {
-    yield();
-    delay(50);
-  } else {
-    // We can save a lot of power by going into deepsleep
-    // Thid disables WIFI and everything.
-    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-    sleepTime = rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get());
-    rtc_gpio_pullup_en(button1.PIN);
-    rtc_gpio_pulldown_dis(button1.PIN);
-    esp_sleep_enable_ext0_wakeup(button1.PIN, 0);
-
-    preferences.end();
-    LOG_INFO_LN(F("[POWER] Sleeping..."));
-    esp_deep_sleep_start();
-  }
-}
-
-void print_wakeup_reason() {
-  esp_sleep_wakeup_cause_t wakeup_reason;
-  wakeup_reason = esp_sleep_get_wakeup_cause();
-
-  switch(wakeup_reason) {
-    case ESP_SLEEP_WAKEUP_EXT0 : 
-      LOG_INFO_LN(F("[POWER] Wakeup caused by external signal using RTC_IO"));
-      button1.pressed = true;
-    break;
-    case ESP_SLEEP_WAKEUP_EXT1 : LOG_INFO_LN(F("[POWER] Wakeup caused by external signal using RTC_CNTL")); break;
-    case ESP_SLEEP_WAKEUP_TIMER : 
-      LOG_INFO_LN(F("[POWER] Wakeup caused by timer"));
-      uint64_t timeNow, timeDiff;
-      timeNow = rtc_time_slowclk_to_us(rtc_time_get(), esp_clk_slowclk_cal_get());
-      timeDiff = timeNow - sleepTime;
-      printf("Now: %" PRIu64 "ms, Duration: %" PRIu64 "ms\n", timeNow / 1000, timeDiff / 1000);
-      delay(2000);
-    break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD : LOG_INFO_LN(F("[POWER] Wakeup caused by touchpad")); break;
-    case ESP_SLEEP_WAKEUP_ULP : LOG_INFO_LN(F("[POWER] Wakeup caused by ULP program")); break;
-    default : LOG_INFO_F("[POWER] Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
-  }
-}
 
 void initWifiAndServices() {
   // Load well known Wifi AP credentials from NVS

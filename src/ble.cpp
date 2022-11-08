@@ -17,7 +17,7 @@
 
 static NimBLEServer* pServer;
 
-bool enableBle = true;                      // Enable Ble, disable to reduce power consumtion, stored in NVS
+extern bool enableBle;
 
 void stopBleServer() {
   NimBLEDevice::deinit();
