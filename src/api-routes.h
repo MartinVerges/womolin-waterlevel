@@ -239,6 +239,7 @@ void APIRegisterRoutes() {
       }
 
       preferences.putString("otaPassword", jsonBuffer["otapassword"].as<String>());
+      ArduinoOTA.setPassword(jsonBuffer["otapassword"].as<String>().c_str());
 
       if (preferences.putUInt("pressureThreshold", jsonBuffer["pressurethreshold"].as<uint16_t>()) ) {
         for (uint8_t i=0; i < LEVELMANAGERS; i++) {
