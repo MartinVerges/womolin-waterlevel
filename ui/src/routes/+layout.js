@@ -4,3 +4,6 @@
 export const prerender = true;
 
 export const trailingSlash = 'always';
+
+// Import our custom CSS
+import '../scss/styles.scss'
