@@ -23,6 +23,7 @@
 		"eslint": "^8.30.0",
 		"eslint-config-prettier": "^8.5.0",
 		"eslint-plugin-svelte3": "^4.0.0",
+		"html-minifier": "^4.0.0",
 		"prettier": "^2.8.1",
 		"prettier-plugin-svelte": "^2.9.0",
 		"sass": "^1.57.0",
@@ -38,7 +39,6 @@
 		"@fortawesome/pro-solid-svg-icons": "^6.2.1",
 		"@popperjs/core": "^2.11.6",
 		"@zerodevx/svelte-toast": "^0.7.2",
-		"html-minifier": "^4.0.0",
 		"svelte-fa": "^3.0.3",
 		"sveltestrap": "^5.10.0"
 	}

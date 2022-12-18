@@ -241,7 +241,7 @@ void APIRegisterRoutes() {
       preferences.putString("otaPassword", jsonBuffer["otapassword"].as<String>());
       ArduinoOTA.setPassword(jsonBuffer["otapassword"].as<String>().c_str());
 
-      if (preferences.putUInt("pressureThreshold", jsonBuffer["pressurethreshold"].as<uint16_t>()) ) {
+      if (preferences.putUInt("pressureThresh", jsonBuffer["pressurethreshold"].as<uint16_t>()) ) {
         for (uint8_t i=0; i < LEVELMANAGERS; i++) {
           LevelManagers[i]->setAirPressureThreshold( jsonBuffer["pressurethreshold"].as<uint16_t>() );
         }
@@ -276,7 +276,7 @@ void APIRegisterRoutes() {
     }
     preferences.end();
     
-    request->send(200, "application/json", "{\"message\":\"New hostname stored in NVS, reboot required!\"}");
+    request->send(200, "application/json", "{\"message\":\"New configuration stored in NVS, reboot required!\"}");
   });
 
   webServer.on("/api/config", HTTP_GET, [&](AsyncWebServerRequest *request) {
@@ -293,7 +293,7 @@ void APIRegisterRoutes() {
 
         doc["otapassword"] = preferences.getString("otaPassword");
         doc["autoairpump"] = preferences.getBool("autoAirPump", true);
-        doc["pressurethreshold"] = preferences.getUInt("pressureThreshold", 10);
+        doc["pressurethreshold"] = preferences.getUInt("pressureThresh", 10);
 
         // MQTT
         doc["enablemqtt"] = enableMqtt;
@@ -540,14 +540,16 @@ void APIRegisterRoutes() {
     .setLastModified(timeinfo)
     .setDefaultFile("index.html");
 
-
   webServer.onNotFound([&](AsyncWebServerRequest *request) {
     if (request->method() == HTTP_OPTIONS) {
       request->send(200);
     } else {
-      if (request->contentType() == "application/json") {
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html");
+      response->setCode(200);
+      request->send(response);
+/*    if (request->contentType() == "application/json") {
         request->send(404, "application/json", "{\"message\":\"Not found\"}");
-      } else request->send(404, "text/plain", "Not found");
+      } else request->send(404, "text/plain", "Not found");*/
     }
   });
 }

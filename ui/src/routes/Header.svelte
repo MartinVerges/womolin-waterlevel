@@ -1,6 +1,3 @@
-<script context="module">
-	export const trailingSlash = 'always';
-</script>
 
 <script>
 	import Fa from 'svelte-fa/src/fa.svelte';
