@@ -1,9 +1,8 @@
-
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -18,10 +17,9 @@ jobs:
           npm config set "//npm.fontawesome.com/:_authToken" ${{ secrets.NPM_FONTAWESOME_KEY }}
           npm install
           npm run build
-         
+
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4.3.3
         with:
           branch: gh-pages
           folder: build/
-
