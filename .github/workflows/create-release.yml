@@ -109,6 +109,7 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin
         asset_name: firmware.bin
+        asset_content_type: application/octet-stream
 
     - name: 'Upload littlefs Artifact to release'
       uses: actions/upload-release-asset@v1
@@ -118,6 +119,7 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin
         asset_name: littlefs.bin
+        asset_content_type: application/octet-stream
 
     - name: 'Upload partitions Artifact to release'
       uses: actions/upload-release-asset@v1
@@ -127,6 +129,7 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ github.workspace }}/.pio/build/esp32dev/partitions.bin
         asset_name: partitions.bin
+        asset_content_type: application/octet-stream
 
     - name: 'Upload bootloader_dio_80m Artifact to release'
       uses: actions/upload-release-asset@v1
@@ -136,6 +139,7 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
         asset_name: bootloader_dio_80m.bin
+        asset_content_type: application/octet-stream
 
     - name: 'Upload boot_app0 Artifact to release'
       uses: actions/upload-release-asset@v1
@@ -145,4 +149,5 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
         asset_name: boot_app0.bin
+        asset_content_type: application/octet-stream
 
