@@ -172,6 +172,60 @@ These are mostly based on measuring the resistance or continuity between two or 
 
 These probes usually cost more than the components in this project, but are extremely inaccurate, prone to calcification and malfunction.
 
+## Using it with Home Assistant
+
+To use the data of the sensor in the best possible way from the MQTT in HomeAssistant, here is an example configuration.
+Please put it into your `configuration.yaml` file.
+
+```
+mqtt:
+  sensor:
+    - name: "Freshwater Level"
+      unique_id: "freshwaterlevel"
+      state_topic: "freshwater/tanklevel1"
+      unit_of_measurement: "%"
+      icon: "mdi:water-percent"
+
+    - name: "Freshwater sensor temperature"
+      unique_id: "freshwatertemp"
+      state_topic: "freshwater/temperature1"
+      unit_of_measurement: "°C"
+      icon: "mdi:temperature-celsius"
+
+    - name: "Freshwater sensor air pressure"
+      unique_id: "freshwaterpressure"
+      state_topic: "freshwater/airPressure1"
+      unit_of_measurement: "hPa"
+      icon: "mdi:gauge"
+
+```
+Your dashboard configuration could look like that:
+
+```
+square: false
+columns: 2
+type: grid
+cards:
+  - type: vertical-stack
+    cards:
+      - type: gauge
+        entity: sensor.freshwater_level
+        severity:
+          green: 50
+          yellow: 20
+          red: 0
+        needle: false
+        min: 0
+        max: 100
+      - type: entities
+        entities:
+          - entity: sensor.freshwater_sensor_temperature
+            name: Temp.
+          - entity: sensor.freshwater_sensor_air_pressure
+            name: Airpres.
+        show_header_toggle: false
+```
+
 # License
 
 womolin.tanklevel (c) by Martin Verges.
@@ -180,4 +234,3 @@ This Project is licensed under a Creative Commons Attribution-NonCommercial-Shar
 
 You should have received a copy of the license along with this work.
 If not, see <http://creativecommons.org/licenses/by-nc-sa/4.0/>.
-
