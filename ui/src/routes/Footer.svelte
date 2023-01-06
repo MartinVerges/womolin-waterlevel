@@ -5,7 +5,6 @@
 	import { faFileImport } from '@fortawesome/pro-solid-svg-icons/faFileImport';
 	import { onMount } from 'svelte';
 
-
 	// ******* SHOW FIRMWARE INFO ******** //
 	let firmware = undefined;
 	onMount(async () => {
@@ -36,15 +35,9 @@
 		{/if}
 
 		<ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
-			<li class="ms-3">
-				<a class="text-muted" href="/console/"><Fa icon={faRectangleTerminal} class="mx-1" />Console</a>
-			</li>
-			<li class="ms-3">
-				<a class="text-muted" href="/info/"><Fa icon={faMemoCircleInfo} class="mx-1" />Info</a>
-			</li>
-			<li class="ms-3">
-				<a class="text-muted" href="/update/"><Fa icon={faFileImport} class="mx-1" />Update</a>
-			</li>
+			<li class="ms-3"><a class="text-muted" href="/console/"><Fa icon={faRectangleTerminal} class="mx-1" />Console</a></li>
+			<li class="ms-3"><a class="text-muted" href="/info/"><Fa icon={faMemoCircleInfo} class="mx-1" />Info</a></li>
+			<li class="ms-3"><a class="text-muted" href="/update/"><Fa icon={faFileImport} class="mx-1" />Update</a></li>
 		</ul>
 	</footer>
 </div>

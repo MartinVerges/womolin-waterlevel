@@ -3,5 +3,10 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+settings.h
+temp/*
+
 tools/mklittlefs*
 tools/tmp/
+
+current-version.json
