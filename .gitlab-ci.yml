@@ -29,6 +29,7 @@ variables:
 cache:
   paths:
     - /root/.platformio/.cache
+    - /root/.cache/pip
     - .pio
     - ui/node_modules
 
@@ -39,8 +40,6 @@ stages:
 build-webui:
   stage: build
   extends: .buildenv
-  dependencies: []
-  needs: []
   artifacts:
     paths:
       - .pio/build/$PIO_ENV/littlefs.bin
@@ -50,12 +49,11 @@ build-webui:
     - npm run build
     - cd ..
     - pio run -e $PIO_ENV -t buildfs
+    - find /
 
 build-firmware:
   stage: build
   extends: .buildenv
-  dependencies: []
-  needs: []
   artifacts:
     paths:
       - current-version.json
@@ -65,6 +63,9 @@ build-firmware:
       - /root/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
   script:
     - pio run -e $PIO_ENV
+    - find / |grep bootloader_dio_80m.bin
+    - find / |grep boot_app0.bin
+    - find /
 
 upload:
   stage: upload
