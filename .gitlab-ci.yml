@@ -26,6 +26,36 @@ stages:
  - build
  - upload
 
+build-webui:
+  stage: build
+  extends: .buildenv
+  dependencies: []
+  needs: []
+  artifacts:
+    paths:
+      - $BUILD_DIR/.pio/build/wemos_d1_mini32/littlefs.bin
+  script:
+    - cd ui
+    - npm install
+    - npm run build
+    - cd ..
+    - pio run -e wemos_d1_mini32 -t buildfs
+
+build-firmware:
+  stage: build
+  extends: .buildenv
+  dependencies: []
+  needs: []
+  artifacts:
+    paths:
+      - $BUILD_DIR/current-version.json
+      - $BUILD_DIR/.pio/build/wemos_d1_mini32/firmware.bin
+      - $BUILD_DIR/.pio/build/wemos_d1_mini32/partitions.bin
+      - ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
+      - ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+  script:
+    - pio run -e wemos_d1_mini32
+
 upload:
   stage: upload
   extends: .buildenv
@@ -42,25 +72,3 @@ upload:
     - s3cmd put .pio/build/wemos_d1_mini32/partitions.bin s3://webinstaller/gaslevel-latest/
     - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://webinstaller/gaslevel-latest/
     - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://webinstaller/gaslevel-latest/
-
-build-firmware:
-  stage: build
-  extends: .buildenv
-  dependencies:
-    - build-webui
-  needs:
-    - build-webui
-  script:
-    - pio run -e wemos_d1_mini32
-
-build-webui:
-  stage: build
-  extends: .buildenv
-  dependencies: []
-  needs: []
-  script:
-    - cd ui
-    - npm install
-    - npm run build
-    - cd ..
-    - pio run -e wemos_d1_mini32 -t buildfs
