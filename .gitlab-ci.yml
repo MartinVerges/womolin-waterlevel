@@ -89,6 +89,6 @@ upload:
     - FILES=$(find results/)
     - echo $FILES
     - for file in $(find results/); do
-    -   echo "s3cmd put $file s3://$S3_BUCKET/$DEST/""
+    -   echo "s3cmd put $file s3://$S3_BUCKET/$DEST/"
     -   s3cmd put $file s3://$S3_BUCKET/$DEST/
     - done
