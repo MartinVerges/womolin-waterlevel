@@ -7,9 +7,9 @@
 image: node:lts-bullseye
 
 variables:
-  PROJECT_NAME: "gaslevel"
+  PROJECT_NAME: "waterlevel"
   S3_BUCKET: "webinstaller"
-  PIO_ENV: "wemos_d1_mini32"
+  PIO_ENV: "esp32dev"
 
 .buildenv:
   before_script:
@@ -86,8 +86,9 @@ upload:
   script:
     - if [ $CI_COMMIT_TAG ]; then DEST=$PROJECT_NAME-release; else DEST=$PROJECT_NAME-latest; fi
     - echo "Deploying to $S3_BUCKET/$DEST"
-    - find .
-    - for file in $(ls results/); do
+    - FILES=$(find results/)
+    - echo $FILES
+    - for file in $(find results/); do
     -   echo "s3cmd put $file s3://$S3_BUCKET/$DEST/""
     -   s3cmd put $file s3://$S3_BUCKET/$DEST/
     - done
