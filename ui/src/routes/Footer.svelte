@@ -3,6 +3,20 @@
 	import { faRectangleTerminal } from '@fortawesome/pro-solid-svg-icons/faRectangleTerminal';
 	import { faMemoCircleInfo } from '@fortawesome/pro-solid-svg-icons/faMemoCircleInfo';
 	import { faFileImport } from '@fortawesome/pro-solid-svg-icons/faFileImport';
+	import { onMount } from 'svelte';
+
+
+	// ******* SHOW FIRMWARE INFO ******** //
+	let firmware = undefined;
+	onMount(async () => {
+		// initial level
+		const response = await fetch(`/api/firmware/info`, {
+			headers: { 'Content-type': 'application/json' }
+		}).catch((error) => console.log(error));
+		if (response.ok) {
+			firmware = await response.json();
+		}
+	});
 
 	import { page } from '$app/stores';
 	let path;
@@ -12,11 +26,14 @@
 <div class="container">
 	<footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
 		<div class="col-md-4 d-flex align-items-center">
-			<a href="/" class="mb-3 me-2 mb-md-0 text-muted text-decoration-none lh-1">
-				<svg class="bi" width="30" height="24"><use xlink:href="#bootstrap" /></svg>
-			</a>
 			<span class="text-muted">© 2022 by Martin Verges</span>
 		</div>
+
+		{#if firmware != undefined}
+		<div class="nav col-md-4 d-flex align-items-center text-muted">
+			<span><small>{firmware.firmware_version} ({firmware.firmware_date})</small></span>
+		</div>
+		{/if}
 
 		<ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
 			<li class="ms-3">

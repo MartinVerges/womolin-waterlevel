@@ -11,6 +11,12 @@
  * License: CC BY-NC-SA 4.0
  */
 
+#if !(defined(AUTO_FW_VERSION))
+  #define AUTO_FW_VERSION "v0.0.0-00000000"
+#endif
+#if !(defined(AUTO_FW_DATE))
+  #define AUTO_FW_DATE "2023-01-01"
+#endif
 #if !(defined(ESP32))
   #error This code is intended to run on the ESP32 platform! Please check your Tools->Board setting.
 #endif
@@ -90,6 +96,7 @@ void setup() {
 
   LOG_INFO_LN(F("\n\n==== starting ESP32 setup() ===="));
   LOG_INFO_F("Firmware build date: %s %s\n", __DATE__, __TIME__);
+  LOG_INFO_F("Firmware Version: %s (%s)\n", AUTO_FW_VERSION, AUTO_FW_DATE);
 
   print_wakeup_reason();
   LOG_INFO_F("[SETUP] Configure ESP32 to sleep for every %d Seconds\n", TIME_TO_SLEEP);
