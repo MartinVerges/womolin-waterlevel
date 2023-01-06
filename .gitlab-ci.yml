@@ -1,5 +1,5 @@
 
-image: node:lts-buster
+image: node:lts-bullseye
 
 .buildenv:
   before_script:
