@@ -1,0 +1,53 @@
+
+image: python:3.9-bullseye
+
+.buildenv:
+  before_script:
+    - apt update -y && apt -y install npm s3cmd
+    - pip3 install -U platformio
+
+cache:
+  paths:
+    - ~/.cache/pip
+    - ~/.platformio/.cache
+
+stages:
+ - webui
+ - firmware
+ - upload
+
+upload:
+  stage: upload
+  extends: .buildenv
+  script:
+    - echo "host_base = s3.womolin.de" > ~/.s3cfg
+    - echo "host_bucket = s3.womolin.de" >> ~/.s3cfg
+    - echo "bucket_location = de-fra" >> ~/.s3cfg
+    - echo "use_https = True" >> ~/.s3cfg
+    - echo "access_key = $S3_ACCESS_KEY" >> ~/.s3cfg
+    - echo "secret_key = $S3_SECRET_KEY" >> ~/.s3cfg
+    - echo "signature_v2 = False" >> ~/.s3cfg
+    - s3cmd put current-version.json s3://webinstaller/gaslevel-latest/
+    - s3cmd put .pio/build/wemos_d1_mini32/firmware.bin s3://webinstaller/gaslevel-latest/
+    - s3cmd put .pio/build/wemos_d1_mini32/littlefs.bin s3://webinstaller/gaslevel-latest/
+    - s3cmd put .pio/build/wemos_d1_mini32/partitions.bin s3://webinstaller/gaslevel-latest/
+    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://webinstaller/gaslevel-latest/
+    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://webinstaller/gaslevel-latest/
+
+build-firmware:
+  stage: firmware
+  extends: .buildenv
+  script:
+    - pio run -e wemos_d1_mini32
+    - pio run -e wemos_d1_mini32 -t buildfs
+
+build-webui:
+  stage: webui
+  extends: .buildenv
+  script:
+    - cd ui
+    - npm config set "@fortawesome:registry" https://npm.fontawesome.com/
+    - npm config set "//npm.fontawesome.com/:_authToken" "$NPM_FONTAWESOME_KEY"
+    - npm install
+    - npm run build
+    - cd ..
