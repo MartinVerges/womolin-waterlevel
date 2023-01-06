@@ -1,6 +1,10 @@
 
 image: node:lts-bullseye
 
+variables:
+  PROJECT_NAME: "gaslevel"
+  S3_BUCKET: "webinstaller"
+
 .buildenv:
   before_script:
     - apt update -y && apt -y install s3cmd python3-pip
@@ -33,7 +37,7 @@ build-webui:
   needs: []
   artifacts:
     paths:
-      - $BUILD_DIR/.pio/build/wemos_d1_mini32/littlefs.bin
+      - .pio/build/wemos_d1_mini32/littlefs.bin
   script:
     - cd ui
     - npm install
@@ -48,9 +52,9 @@ build-firmware:
   needs: []
   artifacts:
     paths:
-      - $BUILD_DIR/current-version.json
-      - $BUILD_DIR/.pio/build/wemos_d1_mini32/firmware.bin
-      - $BUILD_DIR/.pio/build/wemos_d1_mini32/partitions.bin
+      - current-version.json
+      - .pio/build/wemos_d1_mini32/firmware.bin
+      - .pio/build/wemos_d1_mini32/partitions.bin
       - ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
       - ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
   script:
@@ -66,9 +70,11 @@ upload:
     - build-firmware
     - build-webui
   script:
-    - s3cmd put current-version.json s3://webinstaller/gaslevel-latest/
-    - s3cmd put .pio/build/wemos_d1_mini32/firmware.bin s3://webinstaller/gaslevel-latest/
-    - s3cmd put .pio/build/wemos_d1_mini32/littlefs.bin s3://webinstaller/gaslevel-latest/
-    - s3cmd put .pio/build/wemos_d1_mini32/partitions.bin s3://webinstaller/gaslevel-latest/
-    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://webinstaller/gaslevel-latest/
-    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://webinstaller/gaslevel-latest/
+    - if [ $CI_COMMIT_TAG ]; then DEST=$PROJECT_NAME-release; else DEST=$PROJECT_NAME-latest; fi
+    - echo "Project = $PROJECT_NAME - DEST = $DEST"
+    - s3cmd put current-version.json s3://$S3_BUCKET/$DEST/
+    - s3cmd put .pio/build/wemos_d1_mini32/firmware.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put .pio/build/wemos_d1_mini32/littlefs.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put .pio/build/wemos_d1_mini32/partitions.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://$S3_BUCKET/$DEST/
