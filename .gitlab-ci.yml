@@ -86,9 +86,7 @@ upload:
   script:
     - if [ $CI_COMMIT_TAG ]; then DEST=$PROJECT_NAME-release; else DEST=$PROJECT_NAME-latest; fi
     - echo "Deploying to $S3_BUCKET/$DEST"
-    - FILES=$(find results/)
-    - echo $FILES
-    - for file in $(find results/); do
+    - for file in $(find results/*); do
     -   echo "s3cmd put $file s3://$S3_BUCKET/$DEST/"
     -   s3cmd put $file s3://$S3_BUCKET/$DEST/
     - done
