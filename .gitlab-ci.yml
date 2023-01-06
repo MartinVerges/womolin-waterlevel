@@ -14,18 +14,21 @@ variables:
 .buildenv:
   before_script:
     - echo "Running inside $(pwd) - home is $HOME"
-    - apt update -y && apt -y install s3cmd python3-pip
-    - pip3 install -U platformio
+    - apt update -y && apt -y install python3-pip
+    - npm config set "@fortawesome:registry" https://npm.fontawesome.com/
+    - npm config set "//npm.fontawesome.com/:_authToken" "$NPM_FONTAWESOME_KEY"
+    - if [ ! -d results ]; then mkdir -p results; fi
+
+.uploadenv:
+  before_script:
+    - apt update -y && apt -y install s3cmd
     - echo "host_base = s3.womolin.de" > ~/.s3cfg
     - echo "host_bucket = s3.womolin.de" >> ~/.s3cfg
     - echo "bucket_location = de-fra" >> ~/.s3cfg
     - echo "use_https = True" >> ~/.s3cfg
     - echo "access_key = $S3_ACCESS_KEY" >> ~/.s3cfg
     - echo "secret_key = $S3_SECRET_KEY" >> ~/.s3cfg
-    - echo "signature_v2 = False" >> ~/.s3cfg
-    - npm config set "@fortawesome:registry" https://npm.fontawesome.com/
-    - npm config set "//npm.fontawesome.com/:_authToken" "$NPM_FONTAWESOME_KEY"
-    - if [ ! -d results ]; then mkdir -p results; fi
+    - echo "signature_v2 = False" >> ~/.s3cfg    
 
 cache:
   paths:
@@ -76,7 +79,7 @@ build-firmware:
 
 upload:
   stage: upload
-  extends: .buildenv
+  extends: .uploadenv
   dependencies:
     - build-firmware
     - build-webui
@@ -87,6 +90,5 @@ upload:
     - if [ $CI_COMMIT_TAG ]; then DEST=$PROJECT_NAME-release; else DEST=$PROJECT_NAME-latest; fi
     - echo "Deploying to $S3_BUCKET/$DEST"
     - for file in $(find results/*); do
-    -   echo "s3cmd put $file s3://$S3_BUCKET/$DEST/"
     -   s3cmd put $file s3://$S3_BUCKET/$DEST/
     - done
