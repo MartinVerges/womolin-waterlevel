@@ -25,6 +25,7 @@ variables:
     - echo "signature_v2 = False" >> ~/.s3cfg
     - npm config set "@fortawesome:registry" https://npm.fontawesome.com/
     - npm config set "//npm.fontawesome.com/:_authToken" "$NPM_FONTAWESOME_KEY"
+    - mkdir -p results
 
 cache:
   paths:
@@ -42,30 +43,32 @@ build-webui:
   extends: .buildenv
   artifacts:
     paths:
-      - .pio/build/$PIO_ENV/littlefs.bin
+      - results/littlefs.bin
   script:
     - cd ui
     - npm install
     - npm run build
     - cd ..
     - pio run -e $PIO_ENV -t buildfs
-    - find /
+    - cp .pio/build/$PIO_ENV/littlefs.bin results/
 
 build-firmware:
   stage: build
   extends: .buildenv
   artifacts:
     paths:
-      - current-version.json
-      - .pio/build/$PIO_ENV/firmware.bin
-      - .pio/build/$PIO_ENV/partitions.bin
-      - /root/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
-      - /root/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+      - results/current-version.json
+      - results/firmware.bin
+      - results/partitions.bin
+      - results/bootloader_dio_80m.bin
+      - results/boot_app0.bin
   script:
     - pio run -e $PIO_ENV
-    - find / |grep bootloader_dio_80m.bin
-    - find / |grep boot_app0.bin
-    - find /
+    - cp current-version.json results/
+    - cp .pio/build/$PIO_ENV/firmware.bin results/
+    - cp .pio/build/$PIO_ENV/partitions.bin results/
+    - cp /root/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin results/
+    - cp /root/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin results/
 
 upload:
   stage: upload
@@ -79,9 +82,4 @@ upload:
   script:
     - if [ $CI_COMMIT_TAG ]; then DEST=$PROJECT_NAME-release; else DEST=$PROJECT_NAME-latest; fi
     - echo "Project = $PROJECT_NAME - DEST = $DEST"
-    - s3cmd put current-version.json s3://$S3_BUCKET/$DEST/
-    - s3cmd put .pio/build/$PIO_ENV/firmware.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put .pio/build/$PIO_ENV/littlefs.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put .pio/build/$PIO_ENV/partitions.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put /root/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put /root/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://$S3_BUCKET/$DEST/
+    - for file in $(ls results/); do s3cmd put $file s3://$S3_BUCKET/$DEST/; done
