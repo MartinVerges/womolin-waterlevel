@@ -3,7 +3,7 @@ image: node:lts-bullseye
 
 .buildenv:
   before_script:
-    - apt update -y && apt -y install s3cmd
+    - apt update -y && apt -y install s3cmd python3-pip
     - pip3 install -U platformio
 
 cache:
