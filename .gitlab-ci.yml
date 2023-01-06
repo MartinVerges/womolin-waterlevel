@@ -29,7 +29,7 @@ variables:
 
 cache:
   paths:
-    - /root/.platformio/.cache
+    - /root/.platformio/
     - /root/.cache/pip
     - .pio
     - ui/node_modules
