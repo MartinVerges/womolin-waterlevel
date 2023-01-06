@@ -1,9 +1,9 @@
 
-image: python:3.9-bullseye
+image: node:lts-buster
 
 .buildenv:
   before_script:
-    - apt update -y && apt -y install npm s3cmd
+    - apt update -y && apt -y install s3cmd
     - pip3 install -U platformio
 
 cache:
