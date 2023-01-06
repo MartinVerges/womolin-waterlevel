@@ -4,6 +4,7 @@ image: node:lts-bullseye
 variables:
   PROJECT_NAME: "gaslevel"
   S3_BUCKET: "webinstaller"
+  PIO_ENV: "wemos_d1_mini32"
 
 .buildenv:
   before_script:
@@ -18,6 +19,7 @@ variables:
     - echo "signature_v2 = False" >> ~/.s3cfg
     - npm config set "@fortawesome:registry" https://npm.fontawesome.com/
     - npm config set "//npm.fontawesome.com/:_authToken" "$NPM_FONTAWESOME_KEY"
+    - pwd
 
 cache:
   paths:
@@ -37,13 +39,13 @@ build-webui:
   needs: []
   artifacts:
     paths:
-      - .pio/build/wemos_d1_mini32/littlefs.bin
+      - .pio/build/$PIO_ENV/littlefs.bin
   script:
     - cd ui
     - npm install
     - npm run build
     - cd ..
-    - pio run -e wemos_d1_mini32 -t buildfs
+    - pio run -e $PIO_ENV -t buildfs
 
 build-firmware:
   stage: build
@@ -53,12 +55,12 @@ build-firmware:
   artifacts:
     paths:
       - current-version.json
-      - .pio/build/wemos_d1_mini32/firmware.bin
-      - .pio/build/wemos_d1_mini32/partitions.bin
-      - ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
-      - ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+      - .pio/build/$PIO_ENV/firmware.bin
+      - .pio/build/$PIO_ENV/partitions.bin
+      - .platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin
+      - .platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
   script:
-    - pio run -e wemos_d1_mini32
+    - pio run -e $PIO_ENV
 
 upload:
   stage: upload
@@ -73,8 +75,8 @@ upload:
     - if [ $CI_COMMIT_TAG ]; then DEST=$PROJECT_NAME-release; else DEST=$PROJECT_NAME-latest; fi
     - echo "Project = $PROJECT_NAME - DEST = $DEST"
     - s3cmd put current-version.json s3://$S3_BUCKET/$DEST/
-    - s3cmd put .pio/build/wemos_d1_mini32/firmware.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put .pio/build/wemos_d1_mini32/littlefs.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put .pio/build/wemos_d1_mini32/partitions.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://$S3_BUCKET/$DEST/
-    - s3cmd put ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put .pio/build/$PIO_ENV/firmware.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put .pio/build/$PIO_ENV/littlefs.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put .pio/build/$PIO_ENV/partitions.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put .platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin s3://$S3_BUCKET/$DEST/
+    - s3cmd put .platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin s3://$S3_BUCKET/$DEST/
