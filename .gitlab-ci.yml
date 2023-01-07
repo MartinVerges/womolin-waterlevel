@@ -1,0 +1,95 @@
+
+# This script requires some pipeline secrets to be configured in Gitlab
+# - NPM_FONTAWESOME_KEY: The key to access the npm fontawesome repository
+# - S3_ACCESS_KEY:       The access key to upload the result
+# - S3_SECRET_KEY:       The secret key to upload the result
+
+image: node:lts-bullseye
+
+variables:
+  PROJECT_NAME: "waterlevel"
+  S3_BUCKET: "webinstaller"
+  PIO_ENV: "esp32dev"
+
+.buildenv:
+  before_script:
+    - echo "Running inside $(pwd) - home is $HOME"
+    - apt update -y && apt -y install python3-pip
+    - pip3 install -U platformio
+    - npm config set "@fortawesome:registry" https://npm.fontawesome.com/
+    - npm config set "//npm.fontawesome.com/:_authToken" "$NPM_FONTAWESOME_KEY"
+    - if [ ! -d results ]; then mkdir -p results; fi
+
+.uploadenv:
+  before_script:
+    - apt update -y && apt -y install s3cmd
+    - echo "host_base = s3.womolin.de" > ~/.s3cfg
+    - echo "host_bucket = s3.womolin.de" >> ~/.s3cfg
+    - echo "bucket_location = de-fra" >> ~/.s3cfg
+    - echo "use_https = True" >> ~/.s3cfg
+    - echo "access_key = $S3_ACCESS_KEY" >> ~/.s3cfg
+    - echo "secret_key = $S3_SECRET_KEY" >> ~/.s3cfg
+    - echo "signature_v2 = False" >> ~/.s3cfg    
+
+cache:
+  paths:
+    - /root/.platformio/
+    - /root/.cache/pip
+    - .pio
+    - ui/node_modules
+
+stages:
+ - build
+ - upload
+
+build-webui:
+  stage: build
+  extends: .buildenv
+  artifacts:
+    paths:
+      - ui/build/
+  script:
+    - cd ui
+    - npm install
+    - npm run build
+
+build-firmware:
+  stage: build
+  extends: .buildenv
+  dependencies:
+    - build-webui
+  needs:
+    - build-webui
+  artifacts:
+    paths:
+      - results/current-version.json
+      - results/firmware.bin
+      - results/littlefs.bin
+      - results/partitions.bin
+      - results/boot_app0.bin
+      - results/bootloader_dio_80m.bin
+  script:
+    - pio run -e $PIO_ENV
+    - pio run -e $PIO_ENV -t buildfs
+    - cp current-version.json results/
+    - cp .pio/build/$PIO_ENV/firmware.bin results/
+    - cp .pio/build/$PIO_ENV/littlefs.bin results/
+    - cp .pio/build/$PIO_ENV/partitions.bin results/
+    - cp /root/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin results/
+    - cp /root/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin results/
+
+upload:
+  stage: upload
+  extends: .uploadenv
+  dependencies:
+    - build-firmware
+    - build-webui
+  needs:
+    - build-firmware
+    - build-webui
+  script:
+    - if [ $CI_COMMIT_TAG ]; then DEST=$PROJECT_NAME-release; else DEST=$PROJECT_NAME-latest; fi
+    - echo "Deploying to $S3_BUCKET/$DEST"
+    - for file in $(find results/*); do
+    -   s3cmd put $file s3://$S3_BUCKET/$DEST/
+    - done

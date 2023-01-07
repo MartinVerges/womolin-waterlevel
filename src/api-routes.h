@@ -73,7 +73,7 @@ void APIRegisterRoutes() {
     json["setupDone"] = LevelManagers[lm-1]->isConfigured();
 
     const size_t CAPACITY = JSON_ARRAY_SIZE(101);
-    StaticJsonDocument<CAPACITY> doc;
+    DynamicJsonDocument doc(CAPACITY);
     JsonArray array = doc.to<JsonArray>();
     for (int i = 0; i <= 100; i++) array.add(LevelManagers[lm-1]->getLevelData(i));
     json["data"] = array;
@@ -86,15 +86,17 @@ void APIRegisterRoutes() {
   webServer.on("/api/firmware/info", HTTP_GET, [&](AsyncWebServerRequest *request) {
     auto data = esp_ota_get_running_partition();
     String output;
-    StaticJsonDocument<16> doc;
+    DynamicJsonDocument doc(256);
     doc["partition_type"] = data->type;
     doc["partition_subtype"] = data->subtype;
     doc["address"] = data->address;
     doc["size"] = data->size;
     doc["label"] = data->label;
     doc["encrypted"] = data->encrypted;
+    doc["firmware_version"] = AUTO_FW_VERSION;
+    doc["firmware_date"] = AUTO_FW_DATE;
     serializeJson(doc, output);
-    request->send(500, "application/json", output);
+    request->send(200, "application/json", output);
   });
 
   webServer.on("/api/update/upload", HTTP_POST,
@@ -137,7 +139,7 @@ void APIRegisterRoutes() {
     if (final) {
       if (!Update.end(true)) {
         String output;
-        StaticJsonDocument<16> doc;
+        DynamicJsonDocument doc(32);
         doc["message"] = "Update error";
         doc["error"] = Update.errorString();
         serializeJson(doc, output);
@@ -174,7 +176,7 @@ void APIRegisterRoutes() {
 
     if (request->contentType() == "application/json") {
       String output;
-      StaticJsonDocument<16> doc;
+      DynamicJsonDocument doc(16);
       doc["raw"] = LevelManagers[lm-1]->getCalulcatedMedianReading(true);
       serializeJson(doc, output);
       request->send(200, "application/json", output);
@@ -282,7 +284,7 @@ void APIRegisterRoutes() {
   webServer.on("/api/config", HTTP_GET, [&](AsyncWebServerRequest *request) {
     if (request->contentType() == "application/json") {
       String output;
-      StaticJsonDocument<1024> doc;
+      DynamicJsonDocument doc(1024);
 
       if (preferences.begin(NVS_NAMESPACE, true)) {
         doc["hostname"] = hostName;
@@ -329,7 +331,7 @@ void APIRegisterRoutes() {
 
     if (request->contentType() == "application/json") {
       String output;
-      StaticJsonDocument<16> doc;
+      DynamicJsonDocument doc(16);
       doc["setupIsRunning"] = LevelManagers[lm-1]->isSetupRunning();
       serializeJson(doc, output);
       request->send(200, "application/json", output);
@@ -414,7 +416,7 @@ void APIRegisterRoutes() {
 
   webServer.on("/api/level/current/all", HTTP_GET, [&](AsyncWebServerRequest *request) {
     String output;
-    StaticJsonDocument<1024> jsonDoc;
+    DynamicJsonDocument jsonDoc(1024);
 
     for (uint8_t i=0; i < LEVELMANAGERS; i++) {
         jsonDoc[i]["id"] = i;
