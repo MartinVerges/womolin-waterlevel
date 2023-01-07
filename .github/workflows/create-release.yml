@@ -1,9 +1,9 @@
 name: Create Firmware Release
 
-on:
-  push:
-    tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+#on:
+#  push:
+#    tags:
+#      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 jobs:
   build:
@@ -81,6 +81,7 @@ jobs:
         echo "signature_v2 = False" >> ~/.s3cfg
         sudo apt -y update
         sudo apt -y install s3cmd
+        s3cmd put ${{ github.workspace }}/current-version.json s3://webinstaller/waterlevel-release/
         s3cmd put ${{ github.workspace }}/.pio/build/esp32dev/firmware.bin s3://webinstaller/waterlevel-release/
         s3cmd put ${{ github.workspace }}/.pio/build/esp32dev/littlefs.bin s3://webinstaller/waterlevel-release/
         s3cmd put ${{ github.workspace }}/.pio/build/esp32dev/partitions.bin s3://webinstaller/waterlevel-release/
