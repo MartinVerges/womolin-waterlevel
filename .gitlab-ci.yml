@@ -15,6 +15,7 @@ variables:
   before_script:
     - echo "Running inside $(pwd) - home is $HOME"
     - apt update -y && apt -y install python3-pip
+    - pip3 install -U platformi
     - npm config set "@fortawesome:registry" https://npm.fontawesome.com/
     - npm config set "//npm.fontawesome.com/:_authToken" "$NPM_FONTAWESOME_KEY"
     - if [ ! -d results ]; then mkdir -p results; fi
