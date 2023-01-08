@@ -88,12 +88,31 @@ The latest version (current git main branch) is available at [https://s3.womolin
     > platformio run -e esp32dev --target upload
 ```
 
+### Upload prebuild file
+
+Here is a example command to upload existing firmware files.
+```
+/path/to/esptool.py --chip esp32 --port "/dev/ttyUSB0" --baud 921600 --before default_reset --after hard_reset \
+    write_flash -z --flash_mode dio --flash_freq 80m --flash_size 4MB \
+    0x1000 bootloader_dio_80m.bin \
+    0x8000 partitions.bin \
+    0xe000 boot_app0.bin \
+    0x10000 firmware.bin \
+    0x190000 firmware.bin \
+    0x310000 littlefs.bin
+```
+Please make sure that your ESP32 runs with these settings before uploading it.
+
 ## How to build the UI
+
+As the UI requires a valid FontAweSome License, you can find a generated `littlefs.bin` with my subscription.
+It's automatically uploaded to our S3 at [https://s3.womolin.de/webinstaller/gaslevel-latest/littlefs.bin](https://s3.womolin.de/webinstaller/gaslevel-latest/littlefs.bin).
+Please feel free to take this one for your sensor.
+
+### Build your own littlefs.bin
 
 As I haven't found good icons with a free license, I choosed the pro version of fontawesome.
 Therefore it's required to have a valid subscription in order to build the UI yourself.
-On github, the resulting `littlefs.bin` is generated with a valid subscription.
-Please feel free to take this one for your sensor.
 
 Set your FontAweSome key:
 ```
