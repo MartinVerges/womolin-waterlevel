@@ -8,6 +8,6 @@ export async function POST({ request }) {
 		throw error(422, JSON.stringify({ message: 'Invalid data' }));
 	}
 
-	let responseBody = { message: "Please wait while the device reboots!" };
+	let responseBody = { message: 'Please wait while the device reboots!' };
 	return new Response(JSON.stringify(responseBody), { status: 200 });
 }

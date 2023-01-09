@@ -18,6 +18,7 @@
 #include <Preferences.h>
 #include "MQTTclient.h"
 #include "wifimanager.h"
+#include "otaWebUpdater.h"
 
 #define webserverPort 80                    // Start the Webserver on this port
 #define NVS_NAMESPACE "tanksensor"          // Preferences.h namespace to store settings
@@ -25,7 +26,8 @@
 #include <SPI.h>
 #include <Wire.h>
 
-bool otaRunning = false;
+OtaWebUpdater otaWebUpdater;
+bool enableOtaWebUpdate = true;             // Do automatic updates from web
 
 RTC_DATA_ATTR struct timing_t {
   // Check Services like MQTT, ...
@@ -59,7 +61,7 @@ void IRAM_ATTR ISR_button1() {
   button1.pressed = true;
 }
 
-String hostName;
+String hostname;
 AsyncWebServer webServer(webserverPort);
 AsyncEventSource events("/api/events");
 Preferences preferences;

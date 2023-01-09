@@ -38,7 +38,6 @@
 #include <Preferences.h>
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
-#include <ArduinoOTA.h>
 
 // Power Management
 #include <driver/rtc_io.h>
@@ -59,23 +58,29 @@ bool bmp180_found = false;
 WebSerialClass WebSerial;
 
 void initWifiAndServices() {
+  if (enableOtaWebUpdate) {
+    otaWebUpdater.setFirmware(AUTO_FW_DATE, AUTO_FW_VERSION);
+    otaWebUpdater.startBackgroundTask();
+    otaWebUpdater.attachWebServer(&webServer);
+  }
+
   // Load well known Wifi AP credentials from NVS
   WifiManager.startBackgroundTask();
   WifiManager.attachWebServer(&webServer);
   WifiManager.fallbackToSoftAp(preferences.getBool("enableSoftAp", true));
 
   WebSerial.begin(&webServer);
-  
+
   APIRegisterRoutes();
   webServer.begin();
   LOG_INFO_LN(F("[WEB] HTTP server started"));
 
   if (enableWifi) {
     LOG_INFO_LN(F("[MDNS] Starting mDNS Service!"));
-    MDNS.begin(hostName.c_str());
+    MDNS.begin(hostname.c_str());
     MDNS.addService("http", "tcp", 80);
     MDNS.addService("ota", "udp", 3232);
-    LOG_INFO_F("[MDNS] You should be able now to open http://%s.local/ in your browser.\n", hostName);
+    LOG_INFO_F("[MDNS] You should be able now to open http://%s.local/ in your browser.\n", hostname);
   }
 
   if (enableMqtt) {
@@ -132,20 +137,25 @@ void setup() {
   }
 
   // Load Settings from NVS
-  hostName = preferences.getString("hostName");
-  if (hostName.isEmpty()) {
-    hostName = "waterlevel";
-    preferences.putString("hostName", hostName);
+  hostname = preferences.getString("hostname");
+  if (hostname.isEmpty()) {
+    hostname = "waterlevel";
+    preferences.putString("hostname", hostname);
   }
-  enableWifi = preferences.getBool("enableWifi", true);
-  enableBle = preferences.getBool("enableBle", false);
-  enableDac = preferences.getBool("enableDac", false);
-  enableMqtt = preferences.getBool("enableMqtt", false);
+  enableWifi = preferences.getBool("enableWifi", enableWifi);
+  enableBle = preferences.getBool("enableBle", enableBle);
+  enableDac = preferences.getBool("enableDac", enableDac);
+  enableMqtt = preferences.getBool("enableMqtt", enableMqtt);
+  enableOtaWebUpdate = preferences.getBool("otaWebEnabled", enableOtaWebUpdate);
+
+  if (!preferences.getString("otaWebUrl").isEmpty()) {
+    otaWebUpdater.setBaseUrl(preferences.getString("otaWebUrl"));
+  }
 
   if (enableWifi) initWifiAndServices();
   else LOG_INFO_LN(F("[WIFI] Not starting WiFi!"));
 
-  if (enableBle) createBleServer(hostName);
+  if (enableBle) createBleServer(hostname);
   else LOG_INFO_LN(F("[BLE] Bluetooth low energy is disabled."));
 
   String otaPassword = preferences.getString("otaPassword");
@@ -153,35 +163,8 @@ void setup() {
     otaPassword = String((uint32_t)ESP.getEfuseMac());
     preferences.putString("otaPassword", otaPassword);
   }
+  otaWebUpdater.setOtaPassword(otaPassword);
   LOG_INFO_F("[OTA] Password set to '%s'\n", otaPassword);
-  ArduinoOTA
-    .setHostname(hostName.c_str())
-    .setPassword(otaPassword.c_str())
-    .onStart([]() {
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH) type = "sketch";
-      else {
-        type = "filesystem";
-        LittleFS.end();
-      }
-      LOG_INFO_LN("Start updating " + type);
-    })
-    .onEnd([]() {
-      LOG_INFO_LN("\nEnd");
-    })
-    .onProgress([](unsigned int progress, unsigned int total) {
-      LOG_INFO_F("Progress: %u%%\r", (progress / (total / 100)));
-    })
-    .onError([](ota_error_t error) {
-      LOG_INFO_F("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) LOG_INFO_LN("Auth Failed");
-      else if (error == OTA_BEGIN_ERROR) LOG_INFO_LN("Begin Failed");
-      else if (error == OTA_CONNECT_ERROR) LOG_INFO_LN("Connect Failed");
-      else if (error == OTA_RECEIVE_ERROR) LOG_INFO_LN("Receive Failed");
-      else if (error == OTA_END_ERROR) LOG_INFO_LN("End Failed");
-    });
-
-  ArduinoOTA.begin();
 
   preferences.end();
 
@@ -206,8 +189,6 @@ void softReset() {
 }
 
 void loop() {
-  ArduinoOTA.handle();
-
   if (button1.pressed) {
     LOG_INFO_LN(F("[EVENT] Button pressed!"));
     button1.pressed = false;
@@ -220,6 +201,10 @@ void loop() {
     // softReset();
   }
 
+  // Do not continue regular operation as long as a OTA is running
+  // Reason: Background workload can cause upgrade issues that we want to avoid!
+  if (otaWebUpdater.otaIsRunning) return sleepOrDelay();
+
   if (runtime() - Timing.lastServiceCheck > Timing.serviceInterval) {
     Timing.lastServiceCheck = runtime();
     // Check if all the services work
@@ -227,10 +212,6 @@ void loop() {
       if (enableMqtt && !Mqtt.isConnected()) Mqtt.connect();
     }
   }
-
-  // Do not continue regular operation as long as a OTA is running
-  // Reason: Background workload can cause upgrade issues that we want to avoid!
-  if (otaRunning) return sleepOrDelay();
 
   for (uint8_t i=0; i < LEVELMANAGERS; i++) LevelManagers[i]->loop();
 

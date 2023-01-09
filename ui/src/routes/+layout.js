@@ -7,4 +7,4 @@ export const ssr = false;
 export const trailingSlash = 'always';
 
 // Import our custom CSS
-import '../scss/styles.scss'
+import '../scss/styles.scss';

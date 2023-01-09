@@ -45,31 +45,34 @@
 	<Input id="hostname" bind:value={config.hostname} pattern="^[a-zA-Z][a-zA-Z\d-]{(1, 32)}[a-zA-Z\d]$" placeholder="changeme" minlength="3" maxlength="32" />
 </FormGroup>
 <FormGroup>
-	<Input id="enablewifi" bind:checked={config.enablewifi} type="checkbox" label="Enable WiFi" />
-	<Input id="enablesoftap" bind:checked={config.enablesoftap} type="checkbox" label="Create AP if no WiFi is available" />
-	<Input id="enableble" bind:checked={config.enableble} type="checkbox" label="Enable Bluetooth (BLE)" />
-	<Input id="enabledac" bind:checked={config.enabledac} type="checkbox" label="Enable DAC Analog Output" />
+	<Input id="enableWifi" bind:checked={config.enableWifi} type="checkbox" label="Enable WiFi" />
+	<Input id="enableSoftAp" bind:checked={config.enableSoftAp} type="checkbox" label="Create AP if no WiFi is available" />
+	<Input id="enableBle" bind:checked={config.enableBle} type="checkbox" label="Enable Bluetooth (BLE)" />
+	<Input id="enableDac" bind:checked={config.enableDac} type="checkbox" label="Enable DAC Analog Output" />
 </FormGroup>
 <FormGroup>
-	<Input id="autoairpump" bind:checked={config.autoairpump} type="checkbox" label="Enable automatic tube repressurizing" />
-	<Label for="pressurethreshold">Activate on pressure change in hPa</Label>
-	<Input id="pressurethreshold" bind:value={config.pressurethreshold} placeholder="10" min="1" max="65535" type="number" />
+	<Input id="autoAirPump" bind:checked={config.autoAirPump} type="checkbox" label="Enable automatic tube repressurizing" />
+	<Label for="pressureThresh">Activate on pressure change in hPa</Label>
+	<Input id="pressureThresh" bind:value={config.pressureThresh} placeholder="10" min="1" max="65535" type="number" />
 </FormGroup>
 <FormGroup>
-	<Label for="otapassword">OTA (Over The Air) firmware update password</Label>
-	<Input id="otapassword" bind:value={config.otapassword} placeholder="OTA Password" maxlength="32" />
+	<Input id="otaWebEnabled" bind:checked={config.otaWebEnabled} type="checkbox" label="Enable automatic updates from web (requires internet connectiviy)" />
+	<Label for="otaPassword">OTA (Over The Air) firmware update password</Label>
+	<Input id="otaPassword" bind:value={config.otaPassword} placeholder="OTA Password" maxlength="32" />
+	<Label for="otaWebUrl">OTA Web URL (http://server.tdl/directory)</Label>
+	<Input id="otaWebUrl" bind:value={config.otaWebUrl} placeholder="http://server.tdl/directory" minlength="10" maxlength="256" />
 </FormGroup>
 <FormGroup>
-	<Input id="enablemqtt" bind:checked={config.enablemqtt} type="checkbox" label="Publish to MQTT Broker" />
-	<Label for="mqtthost">MQTT Host or IP</Label>
-	<Input id="mqtthost" bind:value={config.mqtthost} placeholder="mqtt.net.local" maxlength="32" />
-	<Label for="mqttport">MQTT Port (default 1883)</Label>
-	<Input id="mqttport" bind:value={config.mqttport} placeholder="1883" min="1" max="65535" type="number" />
-	<Label for="mqtttopic">MQTT Topic</Label>
-	<Input id="mqtttopic" bind:value={config.mqtttopic} placeholder="some/sensor" maxlength="32" />
-	<Label for="mqttuser">MQTT Username</Label>
-	<Input id="mqttuser" bind:value={config.mqttuser} placeholder="Username" maxlength="32" />
-	<Label for="mqttpass">MQTT Password</Label>
-	<Input id="mqttpass" bind:value={config.mqttpass} placeholder="Password" maxlength="32" />
+	<Input id="enableMqtt" bind:checked={config.enableMqtt} type="checkbox" label="Publish to MQTT Broker" />
+	<Label for="mqttHost">MQTT Host or IP</Label>
+	<Input id="mqttHost" bind:value={config.mqttHost} placeholder="mqtt.net.local" maxlength="32" />
+	<Label for="mqttPort">MQTT Port (default 1883)</Label>
+	<Input id="mqttPort" bind:value={config.mqttPort} placeholder="1883" min="1" max="65535" type="number" />
+	<Label for="mqttTopic">MQTT Topic</Label>
+	<Input id="mqttTopic" bind:value={config.mqttTopic} placeholder="some/sensor" maxlength="32" />
+	<Label for="mqttUser">MQTT Username</Label>
+	<Input id="mqttUser" bind:value={config.mqttUser} placeholder="Username" maxlength="32" />
+	<Label for="mqttPass">MQTT Password</Label>
+	<Input id="mqttPass" bind:value={config.mqttPass} placeholder="Password" maxlength="32" />
 </FormGroup>
 <Button on:click={doSaveSettings} block style="height: 5rem;"><Fa icon={faFloppyDisk} />&nbsp;Save Settings</Button>

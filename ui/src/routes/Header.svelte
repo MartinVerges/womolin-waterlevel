@@ -1,4 +1,3 @@
-
 <script>
 	import Fa from 'svelte-fa/src/fa.svelte';
 	import { faRv } from '@fortawesome/pro-solid-svg-icons/faRv';

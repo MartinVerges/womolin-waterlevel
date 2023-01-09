@@ -29,9 +29,9 @@
 		</div>
 
 		{#if firmware != undefined}
-		<div class="nav col-md-4 d-flex align-items-center text-muted">
-			<span><small>{firmware.firmware_version} ({firmware.firmware_date})</small></span>
-		</div>
+			<div class="nav col-md-4 d-flex align-items-center text-muted">
+				<span><small>{firmware.firmware_version} ({firmware.firmware_date})</small></span>
+			</div>
 		{/if}
 
 		<ul class="nav col-md-4 justify-content-end list-unstyled d-flex">

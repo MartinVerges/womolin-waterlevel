@@ -9,7 +9,7 @@ const config = {
 	},
 	resolve: {
 		alias: {
-			'~bootstrap': 'node_modules/bootstrap',
+			'~bootstrap': 'node_modules/bootstrap'
 		}
 	}
 	/*,
