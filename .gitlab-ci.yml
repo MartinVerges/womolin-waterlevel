@@ -83,7 +83,9 @@ build-firmware:
       --flash_mode dio
       --flash_freq 80m
       --flash_size 4MB
+      0x001000 results/bootloader_dio_80m.bin
       0x008000 results/partitions.bin
+      0x00e000 results/boot_app0.bin
       0x010000 results/firmware.bin
       0x1A0000 results/firmware.bin
       0x330000 results/littlefs.bin
