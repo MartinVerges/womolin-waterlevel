@@ -63,20 +63,46 @@ build-firmware:
   artifacts:
     paths:
       - results/current-version.json
+      - results/manifest-update.json
+      - results/manifest-full.json
       - results/firmware.bin
       - results/littlefs.bin
       - results/partitions.bin
       - results/boot_app0.bin
       - results/bootloader_dio_80m.bin
+      - results/esp32-dio-80m-4MB.bin
+
   script:
     - pio run -e $PIO_ENV
     - pio run -e $PIO_ENV -t buildfs
+    - if [ $CI_COMMIT_TAG ]; then
+        TYPE="release";
+        DEST="${PROJECT_NAME}-${TYPE}";
+        NAME="${PROJECT_NAME^} stable release";
+      else
+        TYPE="latest";
+        DEST="${PROJECT_NAME}-${TYPE}";
+        NAME="${PROJECT_NAME^} development release";
+      fi
+    - ./tools/webinstaller-manifest-generator.py -f partitions.csv -p ${DEST} -n "${NAME} update" -t update -o manifest-update.json
+    - ./tools/webinstaller-manifest-generator.py -f partitions.csv -p ${DEST} -n "${NAME} full install" -t full -o manifest-full.json
     - cp current-version.json results/
+    - cp manifest-update.json results/
+    - cp manifest-full.json results/
     - cp .pio/build/$PIO_ENV/firmware.bin results/
     - cp .pio/build/$PIO_ENV/littlefs.bin results/
     - cp .pio/build/$PIO_ENV/partitions.bin results/
     - cp /root/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin results/
     - cp /root/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_80m.bin results/
+    - python3 ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32
+      merge_bin -o results/esp32-dio-80m-4MB.bin
+      --flash_mode dio
+      --flash_freq 80m
+      --flash_size 4MB
+      0x008000 results/partitions.bin
+      0x010000 results/firmware.bin
+      0x1A0000 results/firmware.bin
+      0x330000 results/littlefs.bin
 
 upload:
   stage: upload
