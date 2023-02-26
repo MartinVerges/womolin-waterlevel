@@ -1,0 +1,12 @@
+{
+    "name": "xxxx",
+    "new_install_prompt_erase": true,
+    "new_install_improv_wait_time": 5,
+    "version": "0.0",
+    "builds": [
+      {
+        "chipFamily": "ESP32",
+        "parts": []
+      }
+    ]
+  }
