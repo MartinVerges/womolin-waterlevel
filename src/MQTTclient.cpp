@@ -47,7 +47,7 @@ void MQTTclient::prepare(String host, uint16_t port, String topic, String user, 
   IPAddress ip;
   if (ip.fromString(mqttHost)) { // this is a valid IP
     LOG_INFO(F("[MQTT] Configured broker IP: "));
-    LOG_INFO_LN(ip);
+    LOG_INFO_LN(ip.toString());
     client.setServer(ip, mqttPort);
   } else {
     LOG_INFO(F("[MQTT] Configured broker host: "));
