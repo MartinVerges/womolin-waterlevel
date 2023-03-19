@@ -49,9 +49,9 @@ The 3D printed housing can be found on [onshape as a editable document](https://
 
 To build this sensor yourself, you need:
 
- * 1x ESP32 ESP32-WROOM-32 (~5.00€)
+ * 1x [ESP32 ESP32-WROOM-32](https://womolin.de/produkt/wemos-d1-mini-esp32/)
  * 1x MPX53DP Pressure Sensor (~8.00€)
- * 1x HX711 24-bit ADC (~2.50€)
+ * 1x [HX711 24-bit ADC](https://womolin.de/produkt/hx711-breakout-board/)
  * 1x Pushbutton (~0.15€)
  * 1x Tube with 20mm outher dimension (~1€) [HDPE 20mm](https://www.hornbach.de/shop/KWL-PE-HD-Rohr-20-mm-Laenge-2-m-Stange-12-5-bar/10193149/artikel.html)
  * 1x Tube with 4mm inner width (~1€) [PVC 4x1mm](https://www.hornbach.de/shop/Aquariumschlauch-Weich-PVC-Schlauch-4-x-1-mm-transparent-Meterware/5806466/artikel.html)
