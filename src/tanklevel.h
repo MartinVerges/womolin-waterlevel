@@ -211,7 +211,7 @@ class TANKLEVEL
         double getSensorOffset() { return levelConfig.offset; };
 
         // Update the current evironmental pressure in hPa to compensate sensor reading
-        void setAirPressure(int32_t hPa);
+        void setAirPressure(int32_t hPa, bool runPumpIfPressureDifferenceIsLarge = true);
 
         // Get the current configured AirPressure
         int getAirPressure() { return airPressure; }

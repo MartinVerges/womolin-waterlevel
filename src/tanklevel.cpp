@@ -378,12 +378,12 @@ int TANKLEVEL::runLevelSetup() {
   } else return 0;
 }
 
-void TANKLEVEL::setAirPressure(int32_t hPa) {
+void TANKLEVEL::setAirPressure(int32_t hPa, bool runPumpIfPressureDifferenceIsLarge) {
   if (hPa > 0 && hPa < 2000) {
     // LOG_INFO_F("New airPressure is %d hPa\n", hPa);
     airPressure = hPa;
 
-    if (automaticAirPump) {
+    if (automaticAirPump && runPumpIfPressureDifferenceIsLarge) {
       // Automatic repressurization is enabled.
       // Check if there is a larger difference from the stored air pressure value
       if (levelConfig.airPressureOnFilling - airPressure > automatichAirPumpOnPressureDifferenceHPA

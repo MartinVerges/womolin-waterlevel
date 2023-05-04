@@ -194,6 +194,8 @@ void APIRegisterRoutes() {
         }
       }
 
+      preferences.putBool("airPumpOnBoot", jsonBuffer["airPumpOnBoot"].as<boolean>());
+
       // MQTT Settings
       preferences.putUInt("mqttPort", jsonBuffer["mqttPort"].as<uint16_t>());
       preferences.putString("mqttHost", jsonBuffer["mqttHost"].as<String>());
@@ -234,6 +236,7 @@ void APIRegisterRoutes() {
 
         doc["otaPassword"] = preferences.getString("otaPassword");
         doc["autoAirPump"] = preferences.getBool("autoAirPump", true);
+        doc["airPumpOnBoot"] = preferences.getBool("airPumpOnBoot", true);
         doc["pressureThresh"] = preferences.getUInt("pressureThresh", 10);
 
         doc["otaWebEnabled"] = preferences.getBool("otaWebEnabled", true);

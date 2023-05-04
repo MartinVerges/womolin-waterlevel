@@ -54,6 +54,7 @@
 	<Input id="autoAirPump" bind:checked={config.autoAirPump} type="checkbox" label="Enable automatic tube repressurizing" />
 	<Label for="pressureThresh">Activate on pressure change in hPa</Label>
 	<Input id="pressureThresh" bind:value={config.pressureThresh} placeholder="10" min="1" max="65535" type="number" />
+	<Input id="airPumpOnBoot" bind:checked={config.airPumpOnBoot} type="checkbox" label="Enable Air Pump on Power-On" />
 </FormGroup>
 <FormGroup>
 	<Input id="otaWebEnabled" bind:checked={config.otaWebEnabled} type="checkbox" label="Enable automatic updates from web (requires internet connectiviy)" />
